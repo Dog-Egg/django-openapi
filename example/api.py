@@ -1,7 +1,7 @@
 from django.http import HttpResponse, JsonResponse
 
 from openapi.core import API, operation
-from openapi.parameters import StringParameter, IntegerParameter
+from openapi.schema import properties
 
 
 class BooksAPI(API):
@@ -10,15 +10,15 @@ class BooksAPI(API):
     @staticmethod
     @operation(
         parameters={
-            'a': StringParameter,
-            'b': IntegerParameter(default=None, description='变量B'),
+            'a': properties.String,
+            'b': properties.Integer(default=None, description='变量B'),
         })
     def get(**kwargs):
         return JsonResponse(kwargs)
 
     @staticmethod
     @operation(
-        request_body=...  # TODO
+        request_body=...  #
     )
     def post():
         return HttpResponse('ok')

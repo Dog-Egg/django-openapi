@@ -5,10 +5,9 @@ import typing
 import marshmallow
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from marshmallow import Schema
 
-from openapi.parameters import Parameter
-from openapi.spec.schema import OperationObject, ResponsesObject
+from openapi.schema.properties import Property, Schema
+from openapi.spec.schema import OperationObject, ResponsesObject, RequestBodyObject, MediaTypeObject, SchemaObject
 
 
 class API:
@@ -43,7 +42,7 @@ class API:
         op = Operation.manager.get(handler)
         if op:
             try:
-                query_kwargs: dict = op.marshmallow_schema.load(self.request.GET)
+                query_kwargs: dict = op.schema.deserialize(self.request.GET)
             except marshmallow.ValidationError as e:
                 return JsonResponse(e.normalized_messages(), status=400)
         return handler(**kwargs, **query_kwargs)
@@ -73,14 +72,14 @@ class Operation:
             tags: typing.List[str] = None,
             summary: str = None,
             description: str = None,
-            parameters: typing.Dict[str, typing.Union[Parameter, typing.Type[Parameter]]] = None,
+            parameters: typing.Dict[str, typing.Union[Property, typing.Type[Property]]] = None,
             request_body=None,
     ):
         self.tags = tags
         self.summary = summary
         self.description = description
 
-        self.parameters: typing.Dict[str, Parameter] = {}
+        self.parameters: typing.Dict[str, Property] = {}
         if parameters:
             for name, param in parameters.items():
                 if inspect.isclass(param):
@@ -91,7 +90,7 @@ class Operation:
 
                 self.parameters[name] = param
 
-        self.marshmallow_schema = self._build_marshmallow_schema()
+        self.schema: Schema = Schema.from_dict(self.parameters)()
 
     def __call__(self, handler):
         self.manager.add(handler, self)
@@ -102,17 +101,20 @@ class Operation:
 
         return wrapper
 
-    def _build_marshmallow_schema(self):
-        fields = {}
-        for name, param in self.parameters.items():
-            fields[name] = param.build_marshmallow_field()
-        return Schema.from_dict(fields)(unknown=marshmallow.EXCLUDE)
-
     def to_spec(self):
         return OperationObject(
             tags=self.tags or [],
             parameters=[p.to_spec() for p in self.parameters.values()],
             responses=ResponsesObject({}),
+            request_body=RequestBodyObject(
+                content={
+                    'application/json': MediaTypeObject(
+                        schema=SchemaObject(
+                            type='object'
+                        )
+                    ),
+                }
+            ),
         )
 
 

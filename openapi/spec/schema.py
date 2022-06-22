@@ -11,25 +11,29 @@ class _Serializable:
         raise NotImplementedError
 
     def serialize(self):
-        spec = self._serialize()
-        if isinstance(spec, dict):
-            _spec = {}
-            for name, value in spec.items():
-                if isinstance(value, _Serializable):
-                    value = value.serialize()
-                elif isinstance(value, list):
-                    value = [x.serialize() if isinstance(x, _Serializable) else x for x in value]
+        def _filter(obj):
+            if isinstance(obj, dict):
+                obj = {name: value for name, value in obj.items() if value is not None}
+            elif isinstance(obj, list):
+                obj = [value for value in obj if value is not None]
+            return obj
 
-                if value is not None:
-                    _spec[name] = value
-            return _spec
-        return spec
+        def inner(spec):
+            if isinstance(spec, dict):
+                return _filter({name: inner(value) for name, value in spec.items()})
+            if isinstance(spec, list):
+                return _filter([inner(value) for value in spec])
+            if isinstance(spec, _Serializable):
+                return inner(spec._serialize())
+            return spec
+
+        return inner(self._serialize())
 
 
 class OpenAPIObject(_Serializable):
     def __init__(
             self,
-            /,
+            *,
             info: 'InfoObject',
             paths: 'PathsObject',
             servers: typing.List['ServerObject'] = None,
@@ -51,7 +55,7 @@ class OpenAPIObject(_Serializable):
 class InfoObject(_Serializable):
     def __init__(
             self,
-            /,
+            *,
             title: str,
             version: str = '0.1.0'
     ):
@@ -66,7 +70,7 @@ class InfoObject(_Serializable):
 
 
 class PathsObject(_Serializable):
-    def __init__(self, paths: typing.Dict[str, 'PathItemObject'], /):
+    def __init__(self, paths: typing.Dict[str, 'PathItemObject']):
         self._paths = paths
 
     def _serialize(self):
@@ -80,7 +84,7 @@ class PathsObject(_Serializable):
 class PathItemObject(_Serializable):
     def __init__(
             self,
-            /,
+            *,
             get: 'OperationObject' = None,
             post: 'OperationObject' = None,
             put: 'OperationObject' = None,
@@ -115,7 +119,7 @@ class PathItemObject(_Serializable):
 class OperationObject(_Serializable):
     def __init__(
             self,
-            /,
+            *,
             responses: 'ResponsesObject',
             tags: typing.List[str] = None,
             summary: str = None,
@@ -144,7 +148,7 @@ class OperationObject(_Serializable):
 class ResponsesObject(_Serializable):
     HTTP_STATUS_SET = set(e.value for e in HTTPStatus)
 
-    def __init__(self, responses: typing.Dict[str, 'ResponseObject'], /):
+    def __init__(self, responses: typing.Dict[str, 'ResponseObject']):
         # assert responses
         # for code, res in responses.items():
         #     assert code == 'default' or (code.isdigit() and int(code) in self.HTTP_STATUS_SET)
@@ -157,7 +161,7 @@ class ResponsesObject(_Serializable):
 class ResponseObject(_Serializable):
     def __init__(
             self,
-            /,
+            *,
             description: str
     ):
         self.description = description
@@ -180,7 +184,7 @@ class ParameterObject(_Serializable):
 
     def __init__(
             self,
-            /,
+            *,
             name: str,
             in_: InEnum,
             description: str = None,
@@ -221,12 +225,7 @@ class SchemaObject(_Serializable):
             return self.value
 
     # noinspection PyShadowingBuiltins
-    def __init__(
-            self,
-            /,
-            type: TypeEnum = None,
-            default=None
-    ):
+    def __init__(self, *, type: TypeEnum = None, default=None):
         self.type = type
         self.default = default
 
@@ -238,7 +237,7 @@ class SchemaObject(_Serializable):
 
 
 class ServerObject(_Serializable):
-    def __init__(self, /, url: str, description: str = None):
+    def __init__(self, *, url: str, description: str = None):
         self.url = url
         self.description = description
 
@@ -287,7 +286,12 @@ if __name__ == '__main__':
                                     schema=SchemaObject(type=SchemaObject.TypeEnum.INTEGER))],
                 responses=ResponsesObject({
                     '200': ResponseObject(description='description1')
-                })
+                }),
+                request_body=RequestBodyObject(
+                    content={
+                        'application/json': MediaTypeObject()
+                    }
+                )
             )
         )})
     ).serialize())
