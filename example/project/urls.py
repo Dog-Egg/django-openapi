@@ -1,4 +1,4 @@
-"""example URL Configuration
+"""project URL Configuration
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/4.0/topics/http/urls/
@@ -16,13 +16,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
-from example import api
+from example.project import api
 from openapi.router import Router
 
-# 不考虑用装饰器添加路由，同一API可以被添加到不同的路由上
 router = Router()
-router.add('books', api.BooksAPI)
-router.add('books/<int:book_id>', api.BookAPI)
 
 urlpatterns = [
     path('admin/', admin.site.urls),

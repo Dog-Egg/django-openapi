@@ -3,5 +3,5 @@ from openapi.spec.schema import OpenAPIObject, InfoObject, PathsObject, ServerOb
 openapi = OpenAPIObject(
     info=InfoObject(title='This is Title'),
     paths=PathsObject({}),
-    servers=[ServerObject('/api')]
+    servers=[ServerObject(url='/api')]
 )
