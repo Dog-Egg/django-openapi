@@ -1,13 +1,11 @@
-import inspect
+from collections.abc import Iterable
 
 
-class PureObject:
-    def __init__(self, **kwargs):
-        for name, value in kwargs.items():
+class PureObject(Iterable):
+    def __init__(self, **attributes):
+        self.__attributes = attributes
+        for name, value in attributes.items():
             setattr(self, name, value)
 
-
-def make_instance(obj):
-    if inspect.isclass(obj):
-        obj = obj()
-    return obj
+    def __iter__(self):
+        return iter(self.__attributes.items())

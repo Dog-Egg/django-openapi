@@ -13,9 +13,9 @@ class _Serializable:
     def serialize(self):
         def _filter(obj):
             if isinstance(obj, dict):
-                obj = {name: value for name, value in obj.items() if value is not None}
+                obj = {name: value for name, value in obj.items() if value is not None} or None
             elif isinstance(obj, list):
-                obj = [value for value in obj if value is not None]
+                obj = [value for value in obj if value is not None] or None
             return obj
 
         def inner(spec):
@@ -127,7 +127,7 @@ class OperationObject(_Serializable):
             parameters: typing.List['ParameterObject'] = None,
             request_body: 'RequestBodyObject' = None,
     ):
-        self.tags = tags
+        self.tags = tags or []
         self.summary = summary
         self.description = description
         self.parameters = parameters
@@ -149,9 +149,9 @@ class ResponsesObject(_Serializable):
     HTTP_STATUS_SET = set(e.value for e in HTTPStatus)
 
     def __init__(self, responses: typing.Dict[str, 'ResponseObject']):
-        # assert responses
-        # for code, res in responses.items():
-        #     assert code == 'default' or (code.isdigit() and int(code) in self.HTTP_STATUS_SET)
+        assert responses
+        for code, res in responses.items():
+            assert code == 'default' or (code.isdigit() and int(code) in self.HTTP_STATUS_SET)
         self.responses = responses
 
     def _serialize(self):
@@ -162,18 +162,21 @@ class ResponseObject(_Serializable):
     def __init__(
             self,
             *,
-            description: str
+            description: str,
+            content: typing.Dict[str, 'MediaTypeObject'] = None
     ):
         self.description = description
+        self.content = content
 
     def _serialize(self):
         return {
-            'description': self.description
+            'description': self.description,
+            'content': self.content
         }
 
 
 class ParameterObject(_Serializable):
-    class InEnum(_Serializable, enum.Enum):
+    class LocationEnum(_Serializable, enum.Enum):
         QUERY = 'query'
         HEADER = 'header'
         PATH = 'path'
@@ -186,19 +189,19 @@ class ParameterObject(_Serializable):
             self,
             *,
             name: str,
-            in_: InEnum,
+            location: LocationEnum,
             description: str = None,
             required: bool = None,
             deprecated: bool = None,
             schema: 'SchemaObject' = None,
             example=None
     ):
-        if in_ == self.InEnum.PATH and not required:
+        if location == self.LocationEnum.PATH and not required:
             raise ValueError(
                 'If the parameter location is "path", this property is REQUIRED and its value MUST be true.')
 
         self.name = name
-        self.in_ = in_
+        self.location = location
         self.description = description
         self.required = required
         self.deprecated = deprecated
@@ -208,7 +211,7 @@ class ParameterObject(_Serializable):
     def _serialize(self):
         return {
             'name': self.name,
-            'in': self.in_,
+            'in': self.location,
             'required': self.required,
             'schema': self.schema,
             'description': self.description,
@@ -225,14 +228,19 @@ class SchemaObject(_Serializable):
             return self.value
 
     # noinspection PyShadowingBuiltins
-    def __init__(self, *, type: TypeEnum = None, default=None):
+    def __init__(self, *, type: TypeEnum = None, default=None, **kwargs):
         self.type = type
         self.default = default
+        self.kwargs = kwargs
+
+    def extra(self, **kwargs):
+        self.kwargs.update(kwargs)
 
     def _serialize(self):
         return {
             'type': self.type,
-            'default': self.default
+            'default': self.default,
+            **self.kwargs,
         }
 
 
@@ -274,6 +282,29 @@ class MediaTypeObject(_Serializable):
         }
 
 
+class ReferenceObject(_Serializable):
+    def __init__(self, *, ref: str):
+        self.ref = ref
+
+    def _serialize(self):
+        return {
+            '$ref': self.ref
+        }
+
+
+class ComponentsObject(_Serializable):
+    def __init__(self, *, schemas: typing.Dict[str, SchemaObject] = None,
+                 responses: typing.Dict[str, ResponseObject] = None):
+        self.schemas = schemas
+        self.responses = responses
+
+    def _serialize(self):
+        return {
+            'schemas': self.schemas,
+            'responses': self.responses,
+        }
+
+
 if __name__ == '__main__':
     import pprint
 
@@ -282,7 +313,7 @@ if __name__ == '__main__':
         paths=PathsObject({'/api/a': PathItemObject(
             get=OperationObject(
                 parameters=[
-                    ParameterObject(name='arg1', in_=ParameterObject.InEnum.QUERY,
+                    ParameterObject(name='arg1', location=ParameterObject.LocationEnum.QUERY,
                                     schema=SchemaObject(type=SchemaObject.TypeEnum.INTEGER))],
                 responses=ResponsesObject({
                     '200': ResponseObject(description='description1')

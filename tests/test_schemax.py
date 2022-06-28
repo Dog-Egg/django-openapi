@@ -6,6 +6,20 @@ from openapi.schemax.fields import Schema
 
 
 class Test(unittest.TestCase):
+    def test_build_schema(self):
+        class Schema1(Schema):
+            a = fields.String()
+
+        self.assertFalse(hasattr(Schema1, 'a'))
+
+        class Schema2(Schema):
+            deserialize = fields.Integer()
+
+        # 字段和方法名冲突
+        # noinspection PyCallingNonCallable
+        result = Schema2().deserialize({'deserialize': '1'})
+        self.assertEqual(1, result.deserialize)
+
     def test_schema_deserialize(self):
         class Schema2(Schema):
             d = fields.Integer()

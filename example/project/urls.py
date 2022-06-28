@@ -17,11 +17,14 @@ from django.contrib import admin
 from django.urls import path
 
 from example.project import api
-from openapi.router import Router
+from openapi.core import OpenAPI
 
-router = Router()
+openapi = OpenAPI()
+openapi.add_router('books', api.BooksAPI)
+openapi.add_router('books/<int:book_id>', api.BookAPI)
 
 urlpatterns = [
+    path('', openapi.swagger_ui),
+    path('api/', openapi.urls),
     path('admin/', admin.site.urls),
-    path('api/', router.urls)
 ]
