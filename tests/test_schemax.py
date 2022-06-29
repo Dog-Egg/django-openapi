@@ -112,7 +112,7 @@ class Test(unittest.TestCase):
 
     def test_field_name(self):
         class Schema1(Schema):
-            a = fields.Integer(name='A')
+            a = fields.Integer(key='A')
 
         result = Schema1().deserialize({'A': '1'})
         self.assertEqual(1, result.a)

@@ -4,7 +4,8 @@ from collections import defaultdict
 from openapi.schemax.validators import Validator
 from openapi.schemax.exceptions import ValidationError
 from openapi.schemax.utils import PureObject
-from openapi.spec.schema import SchemaObject
+from openapi.spec.schema import SchemaObject, ComponentsObject, ReferenceObject
+from openapi.spec.utils import OPENAPI_SCHEMA_CONTAINER
 from openapi.utils import make_instance
 
 undefined = type('undefined', (), {'__bool__': lambda self: False})()
@@ -16,27 +17,25 @@ class Field:
     def __init__(
             self,
             *,
-            name: str = None,
-            required: bool = False,
-            default=undefined,
-            default_factory: typing.Callable[[], typing.Any] = None,
-            validators: typing.List[Validator] = None,
+            key: str = None,
+            required: bool = False,  # only deserialize
+            default=undefined,  # only deserialize
+            default_factory: typing.Callable[[], typing.Any] = None,  # only deserialize
+            validators: typing.List[Validator] = None,  # only deserialize
 
-            location: str = 'query',
-            description: str = None,
-            example=None
+            description: str = None,  # openapi spec
+            example=None  # openapi spec
     ):
         if default is not undefined and default_factory is not None:
             raise ValueError('不能同时定义 default 和 default_factory')
 
-        self.name = name
-        self.attr = None
+        self.key = key
+        self.name = None
         self.required = required
         self.default = default
         self.default_factory = default_factory
         self.validators = validators or []
 
-        self.location = location
         self.description = description
         self.example = example
 
@@ -72,13 +71,13 @@ class _ContainerField:
 
 class _SchemaMeta(type):
     def __new__(mcs, classname, bases, attrs):
-        fields: typing.List[Field] = []
+        fields: typing.Dict[str, Field] = {}
         for name, field in attrs.copy().items():
             if isinstance(field, Field):
-                field.attr = name
-                if field.name is None:
-                    field.name = name
-                fields.append(field)
+                field.name = name
+                if field.key is None:
+                    field.key = name
+                fields[name] = field
                 del attrs[name]
 
         cls = super().__new__(mcs, classname, bases, attrs)
@@ -94,31 +93,31 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
         kwargs = {}
         errors = defaultdict(list)
 
-        for field in self._fields:
-            if field.name not in value:
+        for field in self._fields.values():
+            if field.key not in value:
                 # required
                 if field.required:
-                    errors[field.name].append('这个字段是必需的')
+                    errors[field.key].append('这个字段是必需的')
 
                 # default
                 if field.default is not undefined:
-                    kwargs[field.attr] = field.default
+                    kwargs[field.name] = field.default
                 elif field.default_factory is not None:
-                    kwargs[field.attr] = field.default_factory()
+                    kwargs[field.name] = field.default_factory()
 
                 continue
 
             try:
-                kwargs[field.attr] = field.deserialize(value[field.name])
+                kwargs[field.name] = field.deserialize(value[field.key])
             except ValidationError as exc:
-                field_name = field.name
+                key = field.key
                 if isinstance(field, _ContainerField):
-                    errors[field_name] = exc.message
+                    errors[key] = exc.message
                 else:
                     if isinstance(exc.message, list):
-                        errors[field_name].extend(exc.message)
+                        errors[key].extend(exc.message)
                     else:
-                        errors[field_name].append(exc.message)
+                        errors[key].append(exc.message)
 
         if errors:
             raise ValidationError(dict(errors))
@@ -132,19 +131,29 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
         return schema_cls
 
     @classmethod
-    def clone(cls, include_fields: typing.Iterable[str] = None, exclude_fields: typing.Iterable[str] = None):
-        if include_fields and exclude_fields:
+    def clone(cls, *, include: typing.Iterable[str] = None, exclude: typing.Iterable[str] = None):
+        if include and exclude:
             raise ValueError('不能同时定义 include_fields 和 exclude_fields')
         fields = {}
-        for field in cls._fields:
-            if (include_fields and field.attr in include_fields) or (
-                    exclude_fields and field.attr not in exclude_fields):
-                fields[field.attr] = field
+        for name, field in cls._fields.items():
+            if (include and name in include) or (
+                    exclude and name not in exclude):
+                fields[name] = field
         return cls.from_dict(fields)
 
-    def to_spec(self) -> SchemaObject:
+    def to_spec(self) -> typing.Union[SchemaObject, ReferenceObject]:
         obj = super().to_spec()
-        obj.extra(properties={field.name: field.to_spec() for field in self._fields})
+        properties = {}
+        required = []
+        for field in self._fields.values():
+            properties[field.key] = field.to_spec()
+            if field.required:
+                required.append(field.key)
+        obj.extra(properties=properties, required=required)
+        if self._named:
+            schema_name = self.__class__.__name__
+            OPENAPI_SCHEMA_CONTAINER['schemas'][schema_name] = obj
+            return ReferenceObject(ref='#/components/schemas/%s' % schema_name)
         return obj
 
 

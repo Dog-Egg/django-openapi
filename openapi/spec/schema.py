@@ -37,11 +37,13 @@ class OpenAPIObject(_Serializable):
             info: 'InfoObject',
             paths: 'PathsObject',
             servers: typing.List['ServerObject'] = None,
+            components: 'ComponentsObject' = None
     ):
         self.openapi = __version__
         self.info = info
         self.paths = paths
         self.servers = servers
+        self.components = components
 
     def _serialize(self):
         return {
@@ -49,6 +51,7 @@ class OpenAPIObject(_Serializable):
             'info': self.info,
             'paths': self.paths,
             'servers': self.servers,
+            'components': self.components,
         }
 
 
@@ -271,7 +274,7 @@ class RequestBodyObject(_Serializable):
 
 
 class MediaTypeObject(_Serializable):
-    def __init__(self, *, schema: SchemaObject = None, example=None):
+    def __init__(self, *, schema: typing.Union[SchemaObject, 'ReferenceObject'] = None, example=None):
         self.schema = schema
         self.example = example
 

@@ -1,17 +1,22 @@
+import functools
 import json
 import logging
 import re
 import typing
 
-from django.http import HttpRequest, JsonResponse
+from django.http import HttpRequest, JsonResponse, HttpResponse
 from django.shortcuts import render
 from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 
+from openapi.http.exceptions import BadRequest, HttpException
 from openapi.schemax.exceptions import ValidationError
 from openapi.schemax.fields import Field, Schema
 from openapi.spec.schema import OperationObject, ResponsesObject, SchemaObject, InfoObject, OpenAPIObject, \
-    ServerObject, PathsObject, PathItemObject, ParameterObject, ResponseObject, RequestBodyObject, MediaTypeObject
+    ServerObject, PathsObject, PathItemObject, ParameterObject, ResponseObject, RequestBodyObject, MediaTypeObject, \
+    ComponentsObject
+from openapi.spec.utils import OPENAPI_SCHEMA_CONTAINER
+from openapi.typing import GeneralSchemaType
 from openapi.utils import make_instance
 
 logger = logging.getLogger(__name__)
@@ -36,49 +41,22 @@ class API:
     @classmethod
     def as_view(cls):
         @csrf_exempt
-        def view(request, **kwargs):
+        def view(request, *args, **kwargs):
             self = cls()
             self.request = request
-            return self.dispatch(**kwargs)
+            return self.dispatch(request, *args, **kwargs)
 
         return view
 
-    def dispatch(self, **kwargs):
-        query_kwargs = {}
+    def dispatch(self, request, *args, **kwargs):
         handler = getattr(self, self.request.method.lower())
-        op = _operation_manager.get(handler)
-        if op:
-            try:
-                query_kwargs = dict(op.query_schema.deserialize(self.request.GET))
-            except ValidationError as e:
-                return JsonResponse(e.message, status=400)
-
-            if op.request_body:
-                try:
-                    body = op.request_body.deserialize(json.loads(self.request.body))
-                except ValidationError as e:
-                    return JsonResponse(e.message, status=400)
-                else:
-                    kwargs.update(body=body)
-        return handler(**kwargs, **query_kwargs)
-
-
-class _OperationManager:
-    def __init__(self):
-        self._operation_dict: typing.Dict[tuple, 'Operation'] = {}
-
-    @staticmethod
-    def _obj_to_ref(obj):
-        return obj.__module__, obj.__qualname__
-
-    def get(self, handler, default=None):
-        return self._operation_dict.get(self._obj_to_ref(handler), default)
-
-    def add(self, handler, operation: 'Operation'):
-        self._operation_dict[self._obj_to_ref(handler)] = operation
-
-
-_operation_manager = _OperationManager()
+        try:
+            rv = handler(request, *args, **kwargs)
+        except HttpException as exc:
+            return JsonResponse(exc.body, status=exc.status)
+        if not isinstance(rv, HttpResponse):
+            rv = JsonResponse(rv or {})
+        return rv
 
 
 class OpenAPI:
@@ -97,10 +75,14 @@ class OpenAPI:
             if not handler:
                 continue
 
-            op = _operation_manager.get(handler, Operation())
+            op = getattr(handler, 'operation', None)
+            if op is None:
+                op = Operation()
+
             op_spec = op.to_spec()
             op_spec.tags.extend(api_cls.tags)
             op_spec.parameters.extend(route_params)
+
             operations[method] = op_spec
 
         self.paths[openapi_path] = PathItemObject(**operations)
@@ -137,7 +119,10 @@ class OpenAPI:
         spec = OpenAPIObject(
             info=InfoObject(title='This is title'),
             servers=[ServerObject(url='/api')],
-            paths=PathsObject(self.paths)
+            paths=PathsObject(self.paths),
+            components=ComponentsObject(
+                schemas=OPENAPI_SCHEMA_CONTAINER['schemas'],
+            )
         ).serialize()
         try:
             return JsonResponse(spec)
@@ -159,48 +144,92 @@ class Operation:
             tags: typing.List[str] = None,
             summary: str = None,
             description: str = None,
-            parameters: FieldDictType = None,
-            request_body: typing.Union[Schema, typing.Type[Schema]] = None,
-            response_schema: typing.Union[Field, typing.Type[Field]] = None
+            query: GeneralSchemaType = None,
+            cookie: GeneralSchemaType = None,
+            header: GeneralSchemaType = None,
+            body: GeneralSchemaType = None,
+            response: GeneralSchemaType = None
     ):
         self.tags = tags
         self.summary = summary
         self.description = description
-        self.parameters = parameters or {}
-        self.query_schema = self._build_param_schemas('query')
-        self.cookie_schema = self._build_param_schemas('cookie')
-        self.header_schema = self._build_param_schemas('header')
-        self.request_body: Schema = make_instance(request_body)
-        self.response_schema: Schema = make_instance(response_schema)
 
-    def _build_param_schemas(self, location) -> Schema:
-        fields = {}
-        for attr, field in self.parameters.items():
-            if field.location == location:
-                fields[attr] = field
-        return Schema.from_dict(fields)()
+        self.query_schema: Schema = self._make_schema(query)
+        self.cookie_schema: Schema = self._make_schema(cookie)
+        self.header_schema: Schema = self._make_schema(header)
+        self.body_schema: Schema = self._make_schema(body)
+        self.response_schema: Schema = make_instance(response)
+
+    @staticmethod
+    def _make_schema(value: GeneralSchemaType) -> typing.Optional[Schema]:
+        if not value:
+            return
+        if isinstance(value, dict):
+            value = Schema.from_dict(value)
+        return make_instance(value)
 
     def __call__(self, handler):
-        _operation_manager.add(handler, self)
-        return handler
+        @functools.wraps(handler)
+        def wrapper(*args, **kwargs):
+            for request in args:
+                if isinstance(request, HttpRequest):
+                    self._parse_request(request)
+                    break
+            return handler(*args, **kwargs)
+
+        wrapper.operation = self
+        return wrapper
+
+    def _parse_request(self, request: HttpRequest):
+        data = {}
+        if self.body_schema:
+            data['body'] = self._parse_request_body(request)
+        request.data = data
+
+    def _parse_request_query(self, request: HttpRequest):
+        try:
+            return self.query_schema.deserialize(request.GET)
+        except ValidationError as e:
+            raise BadRequest(e.message)
+
+    def _parse_request_body(self, request: HttpRequest):
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, TypeError):
+            raise BadRequest
+        if not isinstance(data, dict):
+            raise BadRequest
+        try:
+            return self.body_schema.deserialize(data)
+        except ValidationError as e:
+            raise BadRequest(e.message)
 
     def to_spec(self):
         parameters = []
-        for attr, field in self.parameters.items():
-            parameters.append(ParameterObject(
-                name=field.name or attr,
-                location=field.location,
-                required=field.required,
-                description=field.description,
-                schema=field.to_spec(),
-            ))
+        for schema, location in [
+            (self.query_schema, 'query'),
+            (self.cookie_schema, 'cookie'),
+            (self.header_schema, 'header')
+        ]:
+            if not schema:
+                continue
+
+            # noinspection PyProtectedMember
+            for name, field in schema._fields.items():
+                parameters.append(ParameterObject(
+                    name=field.key,
+                    location=location,
+                    required=field.required,
+                    description=field.description,
+                    schema=field.to_spec(),
+                ))
 
         return OperationObject(
             summary=self.summary,
             parameters=parameters,
             request_body=RequestBodyObject(content={
                 'application/json': MediaTypeObject(
-                    schema=self.request_body and self.request_body.to_spec(),
+                    schema=self.body_schema and self.body_schema.to_spec(),
                 )
             }),
             responses=ResponsesObject(
