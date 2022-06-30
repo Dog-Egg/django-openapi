@@ -20,6 +20,7 @@ class Field:
             self,
             *,
             key: str = None,
+            attr: str = None,
             required: bool = False,  # only deserialize
             default=undefined,  # only deserialize
             default_factory: typing.Callable[[], typing.Any] = None,  # only deserialize
@@ -32,8 +33,9 @@ class Field:
         if default is not undefined and default_factory is not None:
             raise ValueError('不能同时定义 default 和 default_factory')
 
-        self.key = key
-        self.name = None
+        self.key = key  # serialize: attr -> key
+        self.attr = attr  # deserialize: key -> attr
+        self.name = None  # field name
         self.required = required
         self.default = default
         self.default_factory = default_factory
@@ -87,6 +89,8 @@ class _SchemaMeta(type):
                 field.name = name
                 if field.key is None:
                     field.key = name
+                if field.attr is None:
+                    field.attr = name
                 fields[name] = field
                 del attrs[name]
 
@@ -116,14 +120,14 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
 
                 # default
                 if field.default is not undefined:
-                    data[field.name] = field.default
+                    data[field.attr] = field.default
                 elif field.default_factory is not None:
-                    data[field.name] = field.default_factory()
+                    data[field.attr] = field.default_factory()
 
                 continue
 
             try:
-                data[field.name] = field.deserialize(obj[field.key])
+                data[field.attr] = field.deserialize(obj[field.key])
             except ValidationError as exc:
                 key = field.key
                 if isinstance(field, _ContainerField):
@@ -143,7 +147,7 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
         values = {}
         for field in self._fields.values():
             try:
-                value = get_value(obj, field.name)
+                value = get_value(obj, field.attr)
             except (AttributeError, KeyError):
                 if field.required:
                     raise
