@@ -26,3 +26,8 @@
       ...
 - [ ] 自定义字段
 - [ ] _schema to specification_ (自定义字段？)
+
+### 配置
+
+- [ ] Swagger
+- [ ] Response Schema (200, 400, 500...)
