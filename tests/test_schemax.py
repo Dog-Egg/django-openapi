@@ -10,15 +10,16 @@ class Test(unittest.TestCase):
         class Schema1(Schema):
             a = fields.String()
 
-        self.assertFalse(hasattr(Schema1, 'a'))
+        self.assertTrue(hasattr(Schema1, 'a'))
+        self.assertFalse(hasattr(Schema1(), 'a'))
 
         class Schema2(Schema):
             deserialize = fields.Integer()
 
         # 字段和方法名冲突
         # noinspection PyCallingNonCallable
-        result = Schema2().deserialize({'deserialize': '1'})
-        self.assertEqual(1, result.deserialize)
+        data = Schema2().deserialize({'deserialize': '1'})
+        self.assertEqual({'deserialize': 1}, data)
 
     def test_schema_deserialize(self):
         class Schema2(Schema):
@@ -29,10 +30,8 @@ class Test(unittest.TestCase):
             b = fields.Integer()
             c = Schema2()
 
-        schema = Schema1().deserialize({'a': 1, 'b': '2', 'c': {'d': '3'}})
-        self.assertEqual(schema.a, '1')
-        self.assertEqual(schema.b, 2)
-        self.assertEqual(schema.c.d, 3)
+        data = Schema1().deserialize({'a': 1, 'b': '2', 'c': {'d': '3'}})
+        self.assertEqual({'a': '1', 'b': 2, 'c': {'d': 3}}, data)
 
     def test_validation_error(self):
         class Schema3(Schema):
@@ -74,8 +73,8 @@ class Test(unittest.TestCase):
         class Schema1(Schema):
             nums = fields.List(fields.Integer)
 
-        result = Schema1().deserialize({'nums': ['1', 2, '3']})
-        self.assertEqual(result.nums, [1, 2, 3])
+        data = Schema1().deserialize({'nums': ['1', 2, '3']})
+        self.assertEqual(data, {'nums': [1, 2, 3]})
 
         # 多层嵌套
         result = fields.List(fields.List(fields.Integer)).deserialize([['1', '2'], ['0']])
@@ -106,16 +105,15 @@ class Test(unittest.TestCase):
             a = fields.Integer(default=1)
             b = fields.Integer(default_factory=lambda: 2)
 
-        result = Schema1().deserialize({})
-        self.assertEqual(1, result.a)
-        self.assertEqual(2, result.b)
+        data = Schema1().deserialize({})
+        self.assertEqual({'a': 1, 'b': 2}, data)
 
     def test_field_name(self):
         class Schema1(Schema):
             a = fields.Integer(key='A')
 
-        result = Schema1().deserialize({'A': '1'})
-        self.assertEqual(1, result.a)
+        data = Schema1().deserialize({'A': '1'})
+        self.assertEqual(data, {'a': 1})
 
     def test_string(self):
         self.assertEqual(' HELLO ', fields.String().deserialize(' HELLO '))

@@ -6,7 +6,6 @@ from collections.abc import Mapping
 
 from openapi.schemax.validators import Validator
 from openapi.schemax.exceptions import ValidationError
-from openapi.schemax.utils import PureObject
 from openapi.spec.schema import SchemaObject, ReferenceObject
 from openapi.spec import register
 from openapi.utils import make_instance
@@ -95,13 +94,18 @@ class _SchemaMeta(type):
         cls._fields = fields
         return cls
 
+    def __getattr__(self, name):
+        if name in self._fields:
+            return self._fields[name]
+        return super().__getattribute__(name)
+
 
 class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
     _anonymous = False
     _type = 'object'
 
     def _deserialize(self, obj):
-        values = {}
+        data = {}
         errors = defaultdict(list)
 
         for field in self._fields.values():
@@ -112,14 +116,14 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
 
                 # default
                 if field.default is not undefined:
-                    values[field.name] = field.default
+                    data[field.name] = field.default
                 elif field.default_factory is not None:
-                    values[field.name] = field.default_factory()
+                    data[field.name] = field.default_factory()
 
                 continue
 
             try:
-                values[field.name] = field.deserialize(obj[field.key])
+                data[field.name] = field.deserialize(obj[field.key])
             except ValidationError as exc:
                 key = field.key
                 if isinstance(field, _ContainerField):
@@ -132,7 +136,7 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
 
         if errors:
             raise ValidationError(dict(errors))
-        return PureObject(**values)
+        return data
 
     def _serialize(self, obj):
         get_value = operator.getitem if isinstance(obj, Mapping) else getattr

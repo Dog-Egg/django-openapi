@@ -2,5 +2,5 @@ import typing
 
 
 class ValidationError(Exception):
-    def __init__(self, message: typing.Any):
+    def __init__(self, message: typing.Any = None):
         self.message = message

@@ -21,7 +21,7 @@ from openapi.core import OpenAPI
 
 openapi = OpenAPI()
 openapi.add_router('books', views.BooksAPI)
-openapi.add_router('books/<int:book_id>', views.BookAPI)
+openapi.add_router('books/{book_id}', views.BookAPI)
 openapi.add_router('authors', views.AuthorAPI)
 
 urlpatterns = [

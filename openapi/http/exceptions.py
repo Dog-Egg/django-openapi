@@ -7,3 +7,7 @@ class HttpException(Exception):
 
 class BadRequest(HttpException):
     status = 400
+
+
+class NotFound(HttpException):
+    status = 404

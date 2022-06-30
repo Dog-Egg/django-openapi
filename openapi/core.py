@@ -10,11 +10,12 @@ from django.shortcuts import render
 from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 
-from openapi.http.exceptions import BadRequest, HttpException
+from openapi.http.exceptions import BadRequest, HttpException, NotFound
+from openapi.schemax import fields
 from openapi.schemax.exceptions import ValidationError
 from openapi.schemax.fields import Field, Schema
 from openapi.spec import register
-from openapi.spec.schema import OperationObject, ResponsesObject, SchemaObject, InfoObject, OpenAPIObject, \
+from openapi.spec.schema import OperationObject, ResponsesObject, InfoObject, OpenAPIObject, \
     ServerObject, PathsObject, PathItemObject, ParameterObject, ResponseObject, RequestBodyObject, MediaTypeObject, \
     ComponentsObject
 from openapi.typing import GeneralSchemaType
@@ -38,6 +39,7 @@ class API:
     ]
 
     tags: typing.List[str] = []
+    path_schema: typing.Dict[str, Field] = {}
 
     @classmethod
     def as_view(cls):
@@ -51,8 +53,10 @@ class API:
 
     def dispatch(self, request, *args, **kwargs):
         handler = getattr(self, self.request.method.lower())
+
         # noinspection PyBroadException
         try:
+            self._parse_path_kwargs(kwargs)
             rv = handler(request, *args, **kwargs)
         except HttpException as exc:
             return JsonResponse(exc.body, status=exc.status)
@@ -62,6 +66,14 @@ class API:
         if not isinstance(rv, HttpResponse):
             rv = JsonResponse(rv or {}, safe=False)
         return rv
+
+    def _parse_path_kwargs(self, kwargs):
+        for name, field in self.path_schema.items():
+            if name in kwargs:
+                try:
+                    kwargs[name] = field.deserialize(kwargs[name])
+                except ValidationError:
+                    raise NotFound({'message': 'Not Found'})
 
 
 class OpenAPI:
@@ -74,7 +86,7 @@ class OpenAPI:
 
     def add_router(self, route, api_cls: typing.Type[API]):
         operations = {}
-        openapi_path, route_params = self._parse_route(route)
+        django_route, openapi_path, route_params = self._parse_route(route, api_cls)
 
         for method in api_cls.HTTP_METHODS:
             handler = getattr(api_cls, method, None)
@@ -92,30 +104,28 @@ class OpenAPI:
             operations[method] = op_spec
 
         self.paths[openapi_path] = PathItemObject(**operations)
-        self._urls.append(path(route, api_cls.as_view()))
+        self._urls.append(path(django_route, api_cls.as_view()))
 
     @staticmethod
-    def _parse_route(route):
-        converter_to_type = {
-            'int': SchemaObject.TypeEnum.INTEGER
-        }
-
-        pattern = re.compile(r"<(?:(?P<converter>[^>:]+):)?(?P<parameter>[^>]+)>")
+    def _parse_route(route, api_cls):
+        pattern = re.compile(r"{(?P<parameter>[^>]+)}")
         params = []
-        openapi_path = route
+        openapi_path = django_route = route
         for match in pattern.finditer(route):
-            converter, parameter = match.groups()
+            parameter, = match.groups()
+            field = api_cls.path_schema.get(parameter)
             params.append(ParameterObject(
                 name=parameter,
-                location=ParameterObject.LocationEnum.PATH,
+                location='path',
                 required=True,
-                schema=SchemaObject(type=converter_to_type.get(converter, None))
+                description=field and field.description,
+                schema=field.to_spec() if field else fields.String().to_spec()
             ))
-            openapi_path = route.replace(match.group(), '{%s}' % parameter)
+            django_route = django_route.replace(match.group(), '<%s>' % parameter)
 
         if not openapi_path.startswith('/'):
             openapi_path = '/' + openapi_path
-        return openapi_path, params
+        return django_route, openapi_path, params
 
     @property
     def urls(self):
