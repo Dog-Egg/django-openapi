@@ -1,5 +1,4 @@
-# FIXME 笨办法
-OPENAPI_SCHEMA_CONTAINER = {
-    'schemas': {
-    }
-}
+def default_as_none(value, default):
+    if value is default:
+        return None
+    return value

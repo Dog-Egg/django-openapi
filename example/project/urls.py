@@ -16,12 +16,12 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
-from example.project import api
+from example.library import views
 from openapi.core import OpenAPI
 
 openapi = OpenAPI()
-openapi.add_router('books', api.BooksAPI)
-openapi.add_router('books/<int:book_id>', api.BookAPI)
+openapi.add_router('books', views.BooksAPI)
+openapi.add_router('books/<int:book_id>', views.BookAPI)
 
 urlpatterns = [
     path('', openapi.swagger_ui),

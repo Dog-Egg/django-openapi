@@ -3,6 +3,7 @@ import json
 import logging
 import re
 import typing
+import uuid
 
 from django.http import HttpRequest, JsonResponse, HttpResponse
 from django.shortcuts import render
@@ -12,10 +13,10 @@ from django.views.decorators.csrf import csrf_exempt
 from openapi.http.exceptions import BadRequest, HttpException
 from openapi.schemax.exceptions import ValidationError
 from openapi.schemax.fields import Field, Schema
+from openapi.spec import register
 from openapi.spec.schema import OperationObject, ResponsesObject, SchemaObject, InfoObject, OpenAPIObject, \
     ServerObject, PathsObject, PathItemObject, ParameterObject, ResponseObject, RequestBodyObject, MediaTypeObject, \
     ComponentsObject
-from openapi.spec.utils import OPENAPI_SCHEMA_CONTAINER
 from openapi.typing import GeneralSchemaType
 from openapi.utils import make_instance
 
@@ -50,10 +51,14 @@ class API:
 
     def dispatch(self, request, *args, **kwargs):
         handler = getattr(self, self.request.method.lower())
+        # noinspection PyBroadException
         try:
             rv = handler(request, *args, **kwargs)
         except HttpException as exc:
             return JsonResponse(exc.body, status=exc.status)
+        except Exception:
+            logger.exception('django-openapi')
+            return JsonResponse({'message': 'Internal Server Error'}, status=500)
         if not isinstance(rv, HttpResponse):
             rv = JsonResponse(rv or {})
         return rv
@@ -61,10 +66,11 @@ class API:
 
 class OpenAPI:
     def __init__(self):
-        self.paths = {}
+        self.paths: typing.Dict[str, PathItemObject] = {}
         self._urls = [
             path('spec', self._get_spec)
         ]
+        self._spec_id = uuid.uuid4().hex
 
     def add_router(self, route, api_cls: typing.Type[API]):
         operations = {}
@@ -79,7 +85,7 @@ class OpenAPI:
             if op is None:
                 op = Operation()
 
-            op_spec = op.to_spec()
+            op_spec = op.to_spec(self._spec_id)
             op_spec.tags.extend(api_cls.tags)
             op_spec.parameters.extend(route_params)
 
@@ -121,7 +127,7 @@ class OpenAPI:
             servers=[ServerObject(url='/api')],
             paths=PathsObject(self.paths),
             components=ComponentsObject(
-                schemas=OPENAPI_SCHEMA_CONTAINER['schemas'],
+                schemas=register.components.get_schemas(self._spec_id),
             )
         ).serialize()
         try:
@@ -175,7 +181,10 @@ class Operation:
                 if isinstance(request, HttpRequest):
                     self._parse_request(request)
                     break
-            return handler(*args, **kwargs)
+            rv = handler(*args, **kwargs)
+            if self.response_schema and not isinstance(rv, HttpResponse):
+                rv = self.response_schema.serialize(rv)
+            return rv
 
         wrapper.operation = self
         return wrapper
@@ -204,8 +213,8 @@ class Operation:
         except ValidationError as e:
             raise BadRequest(e.message)
 
-    def to_spec(self):
-        parameters = []
+    def to_spec(self, spec_id) -> OperationObject:
+        parameters: typing.List[ParameterObject] = []
         for schema, location in [
             (self.query_schema, 'query'),
             (self.cookie_schema, 'cookie'),
@@ -227,20 +236,26 @@ class Operation:
         return OperationObject(
             summary=self.summary,
             parameters=parameters,
-            request_body=RequestBodyObject(content={
-                'application/json': MediaTypeObject(
-                    schema=self.body_schema and self.body_schema.to_spec(),
-                )
-            }),
+            request_body=RequestBodyObject(
+                content={
+                    'application/json': MediaTypeObject(
+                        schema=self.body_schema and self.body_schema.to_spec(spec_id),
+                    )
+                },
+                required=self.body_schema is not None
+            ),
             responses=ResponsesObject(
                 responses={
-                    '200': ResponseObject(
+                    200: ResponseObject(
                         description='successful',
                         content={
                             'application/json': MediaTypeObject(
-                                schema=self.response_schema and self.response_schema.to_spec()
+                                schema=self.response_schema and self.response_schema.to_spec(spec_id)
                             )
                         }
+                    ),
+                    500: ResponseObject(
+                        description='error'
                     )
                 })
         )

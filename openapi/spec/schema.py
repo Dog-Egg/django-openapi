@@ -4,8 +4,10 @@ from http import HTTPStatus
 
 __version__ = '3.0.3'
 
+from openapi.spec.utils import default_as_none
 
-class _Serializable:
+
+class _Object:
 
     def _serialize(self):
         raise NotImplementedError
@@ -23,14 +25,14 @@ class _Serializable:
                 return _filter({name: inner(value) for name, value in spec.items()})
             if isinstance(spec, list):
                 return _filter([inner(value) for value in spec])
-            if isinstance(spec, _Serializable):
+            if isinstance(spec, _Object):
                 return inner(spec._serialize())
             return spec
 
         return inner(self._serialize())
 
 
-class OpenAPIObject(_Serializable):
+class OpenAPIObject(_Object):
     def __init__(
             self,
             *,
@@ -55,7 +57,7 @@ class OpenAPIObject(_Serializable):
         }
 
 
-class InfoObject(_Serializable):
+class InfoObject(_Object):
     def __init__(
             self,
             *,
@@ -72,7 +74,7 @@ class InfoObject(_Serializable):
         }
 
 
-class PathsObject(_Serializable):
+class PathsObject(_Object):
     def __init__(self, paths: typing.Dict[str, 'PathItemObject']):
         self._paths = paths
 
@@ -84,7 +86,7 @@ class PathsObject(_Serializable):
         self._paths[path] = item
 
 
-class PathItemObject(_Serializable):
+class PathItemObject(_Object):
     def __init__(
             self,
             *,
@@ -119,7 +121,7 @@ class PathItemObject(_Serializable):
         }
 
 
-class OperationObject(_Serializable):
+class OperationObject(_Object):
     def __init__(
             self,
             *,
@@ -148,20 +150,20 @@ class OperationObject(_Serializable):
         }
 
 
-class ResponsesObject(_Serializable):
+class ResponsesObject(_Object):
     HTTP_STATUS_SET = set(e.value for e in HTTPStatus)
 
-    def __init__(self, responses: typing.Dict[str, 'ResponseObject']):
+    def __init__(self, responses: typing.Dict[typing.Union[str, int], 'ResponseObject']):
         assert responses
         for code, res in responses.items():
-            assert code == 'default' or (code.isdigit() and int(code) in self.HTTP_STATUS_SET)
+            assert code == 'default' or code in self.HTTP_STATUS_SET
         self.responses = responses
 
     def _serialize(self):
         return self.responses
 
 
-class ResponseObject(_Serializable):
+class ResponseObject(_Object):
     def __init__(
             self,
             *,
@@ -178,8 +180,8 @@ class ResponseObject(_Serializable):
         }
 
 
-class ParameterObject(_Serializable):
-    class LocationEnum(_Serializable, enum.Enum):
+class ParameterObject(_Object):
+    class LocationEnum(_Object, enum.Enum):
         QUERY = 'query'
         HEADER = 'header'
         PATH = 'path'
@@ -222,8 +224,8 @@ class ParameterObject(_Serializable):
         }
 
 
-class SchemaObject(_Serializable):
-    class TypeEnum(_Serializable, enum.Enum):
+class SchemaObject(_Object):
+    class TypeEnum(_Object, enum.Enum):
         INTEGER = 'integer'
         STRING = 'string'
 
@@ -247,7 +249,7 @@ class SchemaObject(_Serializable):
         }
 
 
-class ServerObject(_Serializable):
+class ServerObject(_Object):
     def __init__(self, *, url: str, description: str = None):
         self.url = url
         self.description = description
@@ -259,11 +261,11 @@ class ServerObject(_Serializable):
         }
 
 
-class RequestBodyObject(_Serializable):
+class RequestBodyObject(_Object):
     def __init__(self, *, content: typing.Dict[str, 'MediaTypeObject'], description: str = None, required: bool = None):
         self.content = content
         self.description = description
-        self.required = required
+        self.required = default_as_none(required, False)
 
     def _serialize(self):
         return {
@@ -273,7 +275,7 @@ class RequestBodyObject(_Serializable):
         }
 
 
-class MediaTypeObject(_Serializable):
+class MediaTypeObject(_Object):
     def __init__(self, *, schema: typing.Union[SchemaObject, 'ReferenceObject'] = None, example=None):
         self.schema = schema
         self.example = example
@@ -285,7 +287,7 @@ class MediaTypeObject(_Serializable):
         }
 
 
-class ReferenceObject(_Serializable):
+class ReferenceObject(_Object):
     def __init__(self, *, ref: str):
         self.ref = ref
 
@@ -295,7 +297,7 @@ class ReferenceObject(_Serializable):
         }
 
 
-class ComponentsObject(_Serializable):
+class ComponentsObject(_Object):
     def __init__(self, *, schemas: typing.Dict[str, SchemaObject] = None,
                  responses: typing.Dict[str, ResponseObject] = None):
         self.schemas = schemas
