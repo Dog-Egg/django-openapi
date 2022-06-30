@@ -1,6 +1,7 @@
 from datetime import datetime
 
-from .schemas import BookSchema
+from . import models
+from .schemas import BookSchema, AuthorSchema
 from openapi.core import API, Operation
 from openapi.schemax import fields
 
@@ -46,3 +47,23 @@ class BookAPI(API):
     @staticmethod
     def delete(request, book_id):
         return
+
+
+class AuthorAPI(API):
+    tags = ['图书馆']
+
+    @Operation(
+        summary='作者列表',
+        response=fields.Schema.from_dict({'results': fields.List(AuthorSchema, required=True)})
+    )
+    def get(self, request):
+        return {'results': models.Author.objects.all()}
+
+    @Operation(
+        summary='创建作者',
+        body=AuthorSchema.clone(exclude=['id']),
+        response=AuthorSchema,
+    )
+    def post(self, request):
+        instance = models.Author.objects.create(**dict(request.data['body']))
+        return instance

@@ -175,7 +175,7 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
             properties[field.key] = field.to_spec(spec_id)
             if field.required:
                 required.append(field.key)
-        obj.extra(properties=properties, required=required)
+        obj.extra(properties=properties, required=required, description=self.__class__.__doc__)
         if not self._anonymous:
             schema_name = self.__class__.__name__
             register.components.register_schema(spec_id, name=schema_name, schema=obj)
@@ -258,4 +258,19 @@ class Datetime(Field):
     def to_spec(self, *args, **kwargs) -> SchemaObject:
         obj = super().to_spec()
         obj.extra(format='date-time')
+        return obj
+
+
+class Date(Field):
+    _type = 'string'
+
+    def _deserialize(self, date_string):
+        return datetime.date.fromisoformat(date_string)
+
+    def _serialize(self, date: datetime.date):
+        return date.isoformat()
+
+    def to_spec(self, *args, **kwargs) -> SchemaObject:
+        obj = super().to_spec()
+        obj.extra(format='date')
         return obj

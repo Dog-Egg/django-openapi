@@ -60,7 +60,7 @@ class API:
             logger.exception('django-openapi')
             return JsonResponse({'message': 'Internal Server Error'}, status=500)
         if not isinstance(rv, HttpResponse):
-            rv = JsonResponse(rv or {})
+            rv = JsonResponse(rv or {}, safe=False)
         return rv
 
 
