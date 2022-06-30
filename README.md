@@ -25,9 +25,15 @@
     - [ ] Email
       ...
 - [ ] 自定义字段
+- [ ] 各类验证器
 - [ ] _schema to specification_ (自定义字段？)
 
 ### 配置
 
-- [ ] Swagger
+- [ ] Swagger Info
 - [ ] Response Schema (200, 400, 500...)
+
+### 扩展
+
+- [ ] QuerySet 分页
+- [ ] Django Model to Schema
