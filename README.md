@@ -1,10 +1,5 @@
 # Django-OpenAPI
 
-<div style="display: flex; overflow: hidden; height: 420px;justify-content: space-around;">
-  <img width="800px" style="object-fit: contain; margin-top: -10px;" src="./screenshots/Xnip2022-07-01_15-51-17.jpg"/>
-  <img width="800px" style="object-fit: contain; margin-top: -10px;" src="./screenshots/Xnip2022-07-01_16-07-59.jpg">
-</div>
-
 ## 待办清单
 
 ### 基础
