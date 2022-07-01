@@ -15,6 +15,8 @@
 ### Schema
 
 - [x] API结构
+- [x] Schema 字段嵌套
+- [x] Schema 字段继承
 - [ ] 各种类型字段序列反序列实现
     - [x] List
     - [x] String

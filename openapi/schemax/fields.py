@@ -81,8 +81,16 @@ class _ContainerField:
 
 
 class _SchemaMeta(type):
+    _fields: typing.Dict[str, Field]
+
     def __new__(mcs, classname, bases, attrs):
-        fields: typing.Dict[str, Field] = {}
+        fields = {}
+
+        # inherit fields
+        for base in bases[::-1]:
+            if isinstance(base, _SchemaMeta):
+                fields.update(base._fields)
+
         for name, field in attrs.copy().items():
             if isinstance(field, Field):
                 field.name = name
