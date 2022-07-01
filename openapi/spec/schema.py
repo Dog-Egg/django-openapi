@@ -4,6 +4,7 @@ from http import HTTPStatus
 
 __version__ = '3.0.3'
 
+from openapi.spec._register import ComponentRegistry
 from openapi.spec.utils import default_as_none
 
 
@@ -131,6 +132,7 @@ class OperationObject(_Object):
             description: str = None,
             parameters: typing.List['ParameterObject'] = None,
             request_body: 'RequestBodyObject' = None,
+            deprecated: bool = False,
     ):
         self.tags = tags or []
         self.summary = summary
@@ -138,6 +140,7 @@ class OperationObject(_Object):
         self.parameters = parameters
         self.responses = responses
         self.request_body = request_body
+        self.deprecated = default_as_none(deprecated, False)
 
     def _serialize(self):
         return {
@@ -147,6 +150,7 @@ class OperationObject(_Object):
             'parameters': self.parameters,
             'requestBody': self.request_body,
             'responses': self.responses,
+            'deprecated': self.deprecated,
         }
 
 
@@ -297,16 +301,53 @@ class ReferenceObject(_Object):
         }
 
 
-class ComponentsObject(_Object):
-    def __init__(self, *, schemas: typing.Dict[str, SchemaObject] = None,
-                 responses: typing.Dict[str, ResponseObject] = None):
+class ComponentsObject(_Object, ComponentRegistry):
+    def __init__(
+            self,
+            *,
+            schemas: typing.Dict[str, SchemaObject] = None,
+            responses: typing.Dict[str, ResponseObject] = None,
+            security_schemes: typing.Dict[str, 'SecurityRequirementObject'] = None,
+    ):
         self.schemas = schemas
         self.responses = responses
+        self.security_schemes = security_schemes
 
     def _serialize(self):
         return {
             'schemas': self.schemas,
             'responses': self.responses,
+            'securitySchemes': self.security_schemes,
+        }
+
+
+class SecurityRequirementObject(_Object):
+    class TypeEnum(_Object, enum.Enum):
+        API_KEY = 'apiKey'
+        HTTP = 'http'
+        OAUTH2 = 'oauth2'
+        OPEN_ID_CONNECT = 'openIdConnect'
+
+        def _serialize(self):
+            return self.value
+
+    # noinspection PyShadowingBuiltins
+    def __init__(self, *, type, description: str = None, name: str = None, location: str = None):
+        assert type in self.TypeEnum
+        if type == self.TypeEnum.API_KEY:
+            assert all([name, location])
+
+        self.type = type
+        self.description = description
+        self.name = name
+        self.location = location
+
+    def _serialize(self):
+        return {
+            'type': self.type,
+            'description': self.description,
+            'name': self.name,
+            'in': self.location,
         }
 
 

@@ -6,8 +6,7 @@ from collections.abc import Mapping
 
 from openapi.schemax.validators import Validator
 from openapi.schemax.exceptions import ValidationError
-from openapi.spec.schema import SchemaObject, ReferenceObject
-from openapi.spec import register
+from openapi.spec.schema import SchemaObject, ReferenceObject, ComponentsObject
 from openapi.utils import make_instance
 
 undefined = type('undefined', (), {'__bool__': lambda self: False})()
@@ -186,7 +185,7 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
         obj.extra(properties=properties, required=required, description=self.__class__.__doc__)
         if not self._anonymous:
             schema_name = self.__class__.__name__
-            register.components.register_schema(spec_id, name=schema_name, schema=obj)
+            ComponentsObject.register(spec_id=spec_id, component_name='schemas', key=schema_name, value=obj)
             return ReferenceObject(ref='#/components/schemas/%s' % schema_name)
         return obj
 

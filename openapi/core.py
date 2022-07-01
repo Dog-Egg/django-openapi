@@ -5,23 +5,24 @@ import re
 import typing
 import uuid
 
+import django.urls
 from django.http import HttpRequest, JsonResponse, HttpResponse
 from django.shortcuts import render
-from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 
 from openapi.http.exceptions import BadRequest, HttpException, NotFound
+from openapi.router import Router, RouterABC
 from openapi.schemax import fields
 from openapi.schemax.exceptions import ValidationError
 from openapi.schemax.fields import Field, Schema
-from openapi.spec import register
-from openapi.spec.schema import OperationObject, ResponsesObject, InfoObject, OpenAPIObject, \
-    ServerObject, PathsObject, PathItemObject, ParameterObject, ResponseObject, RequestBodyObject, MediaTypeObject, \
-    ComponentsObject
+from openapi.spec.schema import OperationObject, ResponsesObject, InfoObject, OpenAPIObject, PathsObject, \
+    PathItemObject, ParameterObject, ResponseObject, RequestBodyObject, MediaTypeObject, ComponentsObject
 from openapi.typing import GeneralSchemaType
 from openapi.utils import make_instance
 
 logger = logging.getLogger(__name__)
+
+_HANDLER_OPERATION_KEY = '_operation'
 
 
 class API:
@@ -76,15 +77,25 @@ class API:
                     raise NotFound({'message': 'Not Found'})
 
 
-class OpenAPI:
-    def __init__(self):
+class OpenAPI(RouterABC):
+    def __init__(self, *, title: str, prefix=None):
         self.paths: typing.Dict[str, PathItemObject] = {}
-        self._urls = [
-            path('spec', self._get_spec)
-        ]
         self._spec_id = uuid.uuid4().hex
+        self.title = title
+        self._router = Router(prefix=prefix)
 
-    def add_router(self, route, api_cls: typing.Type[API]):
+    def add_route(self, *args, **kwargs):
+        return self._router.add_route(*args, **kwargs)
+
+    @property
+    def urls(self):
+        urls = []
+        for route, api_cls in self._router.get_routes():
+            route = self._handle_route(route, api_cls)
+            urls.append(django.urls.path(route, api_cls.as_view()))
+        return [urls, None, None]
+
+    def _handle_route(self, route: str, api_cls: typing.Type[API]):
         operations = {}
         django_route, openapi_path, route_params = self._parse_route(route, api_cls)
 
@@ -93,7 +104,7 @@ class OpenAPI:
             if not handler:
                 continue
 
-            op = getattr(handler, 'operation', None)
+            op = getattr(handler, _HANDLER_OPERATION_KEY, None)
             if op is None:
                 op = Operation()
 
@@ -104,7 +115,7 @@ class OpenAPI:
             operations[method] = op_spec
 
         self.paths[openapi_path] = PathItemObject(**operations)
-        self._urls.append(path(django_route, api_cls.as_view()))
+        return django_route
 
     @staticmethod
     def _parse_route(route, api_cls):
@@ -127,17 +138,12 @@ class OpenAPI:
             openapi_path = '/' + openapi_path
         return django_route, openapi_path, params
 
-    @property
-    def urls(self):
-        return [self._urls, None, None]
-
-    def _get_spec(self, _):
+    def get_spec(self, _):
         spec = OpenAPIObject(
-            info=InfoObject(title='This is title'),
-            servers=[ServerObject(url='/api')],
+            info=InfoObject(title=self.title),
             paths=PathsObject(self.paths),
             components=ComponentsObject(
-                schemas=register.components.get_schemas(self._spec_id),
+                schemas=ComponentsObject.get_components(spec_id=self._spec_id, component_name='schemas')
             )
         ).serialize()
         try:
@@ -148,9 +154,6 @@ class OpenAPI:
     @staticmethod
     def swagger_ui(request):
         return render(request, 'swagger-ui.html')
-
-
-FieldDictType = typing.Dict[str, Field]
 
 
 class Operation:
@@ -164,7 +167,8 @@ class Operation:
             cookie: GeneralSchemaType = None,
             header: GeneralSchemaType = None,
             body: GeneralSchemaType = None,
-            response: GeneralSchemaType = None
+            response: GeneralSchemaType = None,
+            deprecated: bool = False,
     ):
         self.tags = tags
         self.summary = summary
@@ -175,6 +179,7 @@ class Operation:
         self.header_schema: Schema = self._make_schema(header)
         self.body_schema: Schema = self._make_schema(body)
         self.response_schema: Schema = make_instance(response)
+        self.deprecated = deprecated
 
     @staticmethod
     def _make_schema(value: GeneralSchemaType) -> typing.Optional[Schema]:
@@ -196,7 +201,7 @@ class Operation:
                 rv = self.response_schema.serialize(rv)
             return rv
 
-        wrapper.operation = self
+        setattr(wrapper, _HANDLER_OPERATION_KEY, self)
         return wrapper
 
     def _parse_request(self, request: HttpRequest):
@@ -246,6 +251,7 @@ class Operation:
         return OperationObject(
             summary=self.summary,
             parameters=parameters,
+            deprecated=self.deprecated,
             request_body=RequestBodyObject(
                 content={
                     'application/json': MediaTypeObject(

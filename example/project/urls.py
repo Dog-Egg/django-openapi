@@ -18,14 +18,17 @@ from django.urls import path
 
 from library import views
 from openapi.core import OpenAPI
+from .views import Auth
 
-openapi = OpenAPI()
-openapi.add_router('books', views.BooksAPI)
-openapi.add_router('books/{book_id}', views.BookAPI)
-openapi.add_router('authors', views.AuthorAPI)
+openapi = OpenAPI(title='This is example')
+openapi.add_route('books', views.BooksAPI) \
+    .add_route('{book_id}', views.BookAPI)
+openapi.add_route('authors', views.AuthorAPI)
+openapi.add_route('auth', Auth)
 
 urlpatterns = [
     path('', openapi.swagger_ui),
-    path('api/', openapi.urls),
+    path('', openapi.urls),
+    path('api-spec', openapi.get_spec),
     path('admin/', admin.site.urls),
 ]

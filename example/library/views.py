@@ -47,6 +47,7 @@ class BookAPI(API):
     @Operation(
         summary='获取图书详情',
         response=BookSchema,
+        deprecated=True,
     )
     def get(self, request, book_id):
         return self._get_book(book_id)
