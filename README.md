@@ -1,4 +1,8 @@
-# Django-OpenAPI
+# Django-OpenAPI (开发中...)
+
+通过接口定义，实现文档生成、参数校验、响应数据序列化、API接口自动测试...
+
+![demo](./screenshots/1.png)
 
 ## 待办清单
 

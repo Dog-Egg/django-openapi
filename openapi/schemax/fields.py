@@ -4,8 +4,9 @@ import typing
 from collections import defaultdict
 from collections.abc import Mapping
 
+from openapi.enums import JsonSchemaType
 from openapi.schemax.validators import Validator
-from openapi.schemax.exceptions import ValidationError
+from openapi.schemax.exceptions import DeserializationError, SerializationError
 from openapi.spec.schema import SchemaObject, ReferenceObject, ComponentsObject
 from openapi.utils import make_instance
 
@@ -51,11 +52,11 @@ class Field:
         for validator in self.validators:
             try:
                 validator.validate(obj)
-            except ValidationError as exc:
+            except DeserializationError as exc:
                 errors.append(exc.message)
 
         if errors:
-            raise ValidationError(errors)
+            raise DeserializationError(errors)
         return obj
 
     def _deserialize(self, obj):
@@ -113,7 +114,7 @@ class _SchemaMeta(type):
 
 class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
     _anonymous = False
-    _type = 'object'
+    _type = JsonSchemaType.OBJECT
 
     def _deserialize(self, obj):
         data = {}
@@ -135,7 +136,7 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
 
             try:
                 data[field.attr] = field.deserialize(obj[field.key])
-            except ValidationError as exc:
+            except DeserializationError as exc:
                 key = field.key
                 if isinstance(field, _ContainerField):
                     errors[key] = exc.message
@@ -146,7 +147,7 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
                         errors[key].append(exc.message)
 
         if errors:
-            raise ValidationError(dict(errors))
+            raise DeserializationError(dict(errors))
         return data
 
     def _serialize(self, obj):
@@ -165,13 +166,13 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
     @classmethod
     def from_dict(cls, fields: typing.Dict[str, Field], *, name: str = None):
         # noinspection PyTypeChecker
-        schema_cls: typing.Type['Schema'] = type(name or 'AnonymousSchema', (cls,), fields)
+        schema_cls: typing.Type['Schema'] = type(name or 'AnonymousSchema', (Schema,), fields)
         if name is None:
             schema_cls._anonymous = True
         return schema_cls
 
     @classmethod
-    def clone(cls, *, include: typing.Iterable[str] = None, exclude: typing.Iterable[str] = None, name: str = None):
+    def partial(cls, *, include: typing.Iterable[str] = None, exclude: typing.Iterable[str] = None, name: str = None):
         if include and exclude:
             raise ValueError('不能同时定义 include 和 exclude')
         fields = {}
@@ -199,37 +200,42 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
 
 
 class String(Field):
-    _type = 'string'
+    _type = JsonSchemaType.STRING
 
     def __init__(self, *args, strip=False, **kwargs):
         super().__init__(*args, **kwargs)
-        self.strip = strip
+        self.strip = strip  # only deserialize
 
-    def _deserialize(self, obj):
-        string = str(obj)
+    def _deserialize(self, value):
+        if not isinstance(value, str):
+            raise DeserializationError('必须是字符串')
+
         if self.strip:
-            string = string.strip()
-        return string
+            value = value.strip()
+        return value
 
-    def _serialize(self, obj):
-        return str(obj)
+    def _serialize(self, value):
+        if not isinstance(value, str):
+            raise SerializationError('必须是字符串')
+
+        return value
 
 
 class Integer(Field):
-    _type = 'integer'
+    _type = JsonSchemaType.INTEGER
 
     def _deserialize(self, obj):
         try:
             return int(obj)
         except ValueError:
-            raise ValidationError('不是一个整数')
+            raise DeserializationError('不是一个整数')
 
     def _serialize(self, obj):
         return int(obj)
 
 
 class List(Field, _ContainerField):
-    _type = 'array'
+    _type = JsonSchemaType.ARRAY
 
     def __init__(self, field_or_cls: typing.Union[Field, typing.Type[Field]], *args, **kwargs):
         self._field: Field = make_instance(field_or_cls)
@@ -242,11 +248,11 @@ class List(Field, _ContainerField):
         for index, item in enumerate(obj):
             try:
                 rv.append(self._field.deserialize(item))
-            except ValidationError as exc:
+            except DeserializationError as exc:
                 errors[index].append(exc.message)
 
         if errors:
-            raise ValidationError(dict(errors))
+            raise DeserializationError(dict(errors))
         return rv
 
     def _serialize(self, obj):
@@ -262,7 +268,7 @@ class List(Field, _ContainerField):
 
 
 class Datetime(Field):
-    _type = 'string'
+    _type = JsonSchemaType.STRING
 
     def _deserialize(self, obj):
         pass
@@ -277,7 +283,7 @@ class Datetime(Field):
 
 
 class Date(Field):
-    _type = 'string'
+    _type = JsonSchemaType.STRING
 
     def _deserialize(self, date_string):
         return datetime.date.fromisoformat(date_string)

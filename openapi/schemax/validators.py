@@ -1,4 +1,4 @@
-from openapi.schemax.exceptions import ValidationError
+from openapi.schemax.exceptions import DeserializationError
 
 
 class Validator:
@@ -16,13 +16,13 @@ class Length(Validator):
         length = len(value)
         if self.min is not None and self.max is not None:
             if not (self.min <= length <= self.max):
-                raise ValidationError('长度必须在 %d 到 %d 之间' % (self.min, self.max))
+                raise DeserializationError('长度必须在 %d 到 %d 之间' % (self.min, self.max))
         elif self.min is not None:
             if length < self.min:
-                raise ValidationError('长度最小为 %s' % self.min)
+                raise DeserializationError('长度最小为 %s' % self.min)
         elif self.max is not None:
             if length > self.max:
-                raise ValidationError('长度最大为 %s' % self.max)
+                raise DeserializationError('长度最大为 %s' % self.max)
 
 
 class Range(Validator):
@@ -34,10 +34,10 @@ class Range(Validator):
     def validate(self, value):
         if self.min is not None and self.max is not None:
             if not (self.min <= value <= self.max):
-                raise ValidationError('大小必须在 %d 到 %d 之间' % (self.min, self.max))
+                raise DeserializationError('大小必须在 %d 到 %d 之间' % (self.min, self.max))
         elif self.min is not None:
             if value < self.min:
-                raise ValidationError('最小为 %s' % self.min)
+                raise DeserializationError('最小为 %s' % self.min)
         elif self.max is not None:
             if value > self.max:
-                raise ValidationError('最大为 %s' % self.max)
+                raise DeserializationError('最大为 %s' % self.max)

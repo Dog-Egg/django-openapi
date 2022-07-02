@@ -10,10 +10,11 @@ from django.http import HttpRequest, JsonResponse, HttpResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 
+from openapi.enums import Location
 from openapi.http.exceptions import BadRequest, HttpException, NotFound
 from openapi.router import Router, RouterABC
 from openapi.schemax import fields
-from openapi.schemax.exceptions import ValidationError
+from openapi.schemax.exceptions import DeserializationError
 from openapi.schemax.fields import Field, Schema
 from openapi.spec.schema import OperationObject, ResponsesObject, InfoObject, OpenAPIObject, PathsObject, \
     PathItemObject, ParameterObject, ResponseObject, RequestBodyObject, MediaTypeObject, ComponentsObject
@@ -73,7 +74,7 @@ class API:
             if name in kwargs:
                 try:
                     kwargs[name] = field.deserialize(kwargs[name])
-                except ValidationError:
+                except DeserializationError:
                     raise NotFound({'message': 'Not Found'})
 
 
@@ -127,7 +128,7 @@ class OpenAPI(RouterABC):
             field = api_cls.path_schema.get(parameter)
             params.append(ParameterObject(
                 name=parameter,
-                location='path',
+                location=Location.PATH,
                 required=True,
                 description=field and field.description,
                 schema=field.to_spec() if field else fields.String().to_spec()
@@ -213,7 +214,7 @@ class Operation:
     def _parse_request_query(self, request: HttpRequest):
         try:
             return self.query_schema.deserialize(request.GET)
-        except ValidationError as e:
+        except DeserializationError as e:
             raise BadRequest(e.message)
 
     def _parse_request_body(self, request: HttpRequest):
@@ -225,15 +226,15 @@ class Operation:
             raise BadRequest
         try:
             return self.body_schema.deserialize(data)
-        except ValidationError as e:
+        except DeserializationError as e:
             raise BadRequest(e.message)
 
     def to_spec(self, spec_id) -> OperationObject:
         parameters: typing.List[ParameterObject] = []
         for schema, location in [
-            (self.query_schema, 'query'),
-            (self.cookie_schema, 'cookie'),
-            (self.header_schema, 'header')
+            (self.query_schema, Location.QUERY),
+            (self.cookie_schema, Location.COOKIE),
+            (self.header_schema, Location.HEADER)
         ]:
             if not schema:
                 continue

@@ -1,6 +1,7 @@
-import typing
+class SerializationError(Exception):
+    pass
 
 
-class ValidationError(Exception):
-    def __init__(self, message: typing.Any = None):
+class DeserializationError(Exception):
+    def __init__(self, message=None):
         self.message = message

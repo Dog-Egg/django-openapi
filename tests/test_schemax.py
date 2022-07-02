@@ -1,7 +1,7 @@
 import unittest
 
 from openapi.schemax import fields, validators
-from openapi.schemax.exceptions import ValidationError
+from openapi.schemax.exceptions import DeserializationError
 from openapi.schemax.fields import Schema
 
 
@@ -30,7 +30,7 @@ class Test(unittest.TestCase):
             b = fields.Integer()
             c = Schema2()
 
-        data = Schema1().deserialize({'a': 1, 'b': '2', 'c': {'d': '3'}})
+        data = Schema1().deserialize({'a': '1', 'b': '2', 'c': {'d': '3'}})
         self.assertEqual({'a': '1', 'b': 2, 'c': {'d': 3}}, data)
 
     def test_validation_error(self):
@@ -46,7 +46,7 @@ class Test(unittest.TestCase):
             a1 = fields.Integer()
             b1 = Schema2()
 
-        with self.assertRaises(ValidationError):
+        with self.assertRaises(DeserializationError):
             try:
                 Schema1().deserialize({
                     'a1': 'a',
@@ -56,7 +56,7 @@ class Test(unittest.TestCase):
                         'c2': [{'a3': 'a'}]
                     }
                 })
-            except ValidationError as e:
+            except DeserializationError as e:
                 self.assertEqual({
                     'a1': ['不是一个整数'],
                     'b1': {
@@ -90,10 +90,10 @@ class Test(unittest.TestCase):
         class Schema2(Schema):
             a = fields.Integer(required=True)
 
-        with self.assertRaises(ValidationError):
+        with self.assertRaises(DeserializationError):
             try:
                 Schema2().deserialize({})
-            except ValidationError as exc:
+            except DeserializationError as exc:
                 self.assertEqual({'a': ['这个字段是必需的']}, exc.message)
                 raise
 
@@ -123,10 +123,10 @@ class Test(unittest.TestCase):
         class Schema1(Schema):
             a = fields.String(validators=[validators.Length(min=6), validators.Length(max=2)])
 
-        with self.assertRaises(ValidationError):
+        with self.assertRaises(DeserializationError):
             try:
                 Schema1().deserialize({'a': '123'})
-            except ValidationError as exc:
+            except DeserializationError as exc:
                 self.assertEqual({'a': ['长度最小为 6', '长度最大为 2']}, exc.message)
                 raise
 

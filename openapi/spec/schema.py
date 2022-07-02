@@ -1,9 +1,9 @@
-import enum
 import typing
 from http import HTTPStatus
 
 __version__ = '3.0.3'
 
+from openapi.enums import Location, JsonSchemaType, SecurityType
 from openapi.spec._register import ComponentRegistry
 from openapi.spec.utils import default_as_none
 
@@ -185,27 +185,19 @@ class ResponseObject(_Object):
 
 
 class ParameterObject(_Object):
-    class LocationEnum(_Object, enum.Enum):
-        QUERY = 'query'
-        HEADER = 'header'
-        PATH = 'path'
-        COOKIE = 'cookie'
-
-        def _serialize(self):
-            return self.value
-
     def __init__(
             self,
             *,
             name: str,
-            location: LocationEnum,
+            location: str,
             description: str = None,
             required: bool = None,
             deprecated: bool = None,
             schema: 'SchemaObject' = None,
             example=None
     ):
-        if location == self.LocationEnum.PATH and not required:
+        assert location in Location
+        if location == Location.PATH and not required:
             raise ValueError(
                 'If the parameter location is "path", this property is REQUIRED and its value MUST be true.')
 
@@ -229,15 +221,8 @@ class ParameterObject(_Object):
 
 
 class SchemaObject(_Object):
-    class TypeEnum(_Object, enum.Enum):
-        INTEGER = 'integer'
-        STRING = 'string'
-
-        def _serialize(self):
-            return self.value
-
     # noinspection PyShadowingBuiltins
-    def __init__(self, *, type: TypeEnum = None, default=None, **kwargs):
+    def __init__(self, *, type: str = None, default=None, **kwargs):
         self.type = type
         self.default = default
         self.kwargs = kwargs
@@ -322,19 +307,10 @@ class ComponentsObject(_Object, ComponentRegistry):
 
 
 class SecurityRequirementObject(_Object):
-    class TypeEnum(_Object, enum.Enum):
-        API_KEY = 'apiKey'
-        HTTP = 'http'
-        OAUTH2 = 'oauth2'
-        OPEN_ID_CONNECT = 'openIdConnect'
-
-        def _serialize(self):
-            return self.value
-
     # noinspection PyShadowingBuiltins
     def __init__(self, *, type, description: str = None, name: str = None, location: str = None):
-        assert type in self.TypeEnum
-        if type == self.TypeEnum.API_KEY:
+        assert type in SecurityType
+        if type == SecurityType.API_KEY:
             assert all([name, location])
 
         self.type = type
@@ -359,8 +335,8 @@ if __name__ == '__main__':
         paths=PathsObject({'/api/a': PathItemObject(
             get=OperationObject(
                 parameters=[
-                    ParameterObject(name='arg1', location=ParameterObject.LocationEnum.QUERY,
-                                    schema=SchemaObject(type=SchemaObject.TypeEnum.INTEGER))],
+                    ParameterObject(name='arg1', location=Location.QUERY,
+                                    schema=SchemaObject(type=JsonSchemaType.INTEGER))],
                 responses=ResponsesObject({
                     '200': ResponseObject(description='description1')
                 }),

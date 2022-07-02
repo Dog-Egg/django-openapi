@@ -1,10 +1,35 @@
 import datetime
 
 from openapi.http.exceptions import NotFound
+from openapi.schemax.exceptions import DeserializationError
 from . import models
-from .schemas import BookSchema, AuthorSchema
 from openapi.core import API, Operation
-from openapi.schemax import fields
+from openapi.schemax import fields, validators
+from openapi.schemax.fields import Schema
+
+
+class BookSchema(Schema):
+    """图书"""
+
+    class ValidateAuthorID(validators.Validator):
+        def validate(self, value) -> None:
+            try:
+                models.Author.objects.get(pk=value)
+            except models.Author.DoesNotExist:
+                raise DeserializationError('ID不存在')
+
+    id = fields.Integer(description='图书ID', example=1, required=True)
+    title = fields.String(description='书名', example='三体', required=True)
+    author_id = fields.Integer(description='作者ID', example=1, required=True, validators=[ValidateAuthorID()])
+    created_at = fields.Datetime(description='创建时间', required=True)
+
+
+class AuthorSchema(Schema):
+    """作者"""
+
+    id = fields.Integer(description='作者ID', example=1, required=True)
+    name = fields.String(description='作者姓名', example='刘慈溪', required=True, strip=True)
+    birthday = fields.Date(description='生日', required=True)
 
 
 class BooksAPI(API):
@@ -12,14 +37,14 @@ class BooksAPI(API):
 
     @Operation(
         summary='获取图书列表',
-        response=fields.Schema.from_dict({'results': fields.List(BookSchema, required=True)})
+        response=Schema.from_dict({'results': fields.List(BookSchema, required=True)})
     )
     def get(self, request):
         return {'results': models.Book.objects.all()}
 
     @Operation(
         summary='创建图书',
-        body=BookSchema.clone(include=[
+        body=BookSchema.partial(include=[
             BookSchema.title.name,
             BookSchema.author_id.name,
         ]),
@@ -61,14 +86,14 @@ class AuthorAPI(API):
 
     @Operation(
         summary='作者列表',
-        response=fields.Schema.from_dict({'results': fields.List(AuthorSchema, required=True)})
+        response=Schema.from_dict({'results': fields.List(AuthorSchema, required=True)})
     )
     def get(self, request):
         return {'results': models.Author.objects.all()}
 
     @Operation(
         summary='创建作者',
-        body=AuthorSchema.clone(exclude=[AuthorSchema.id.name]),
+        body=AuthorSchema.partial(exclude=[AuthorSchema.id.name]),
         response=AuthorSchema,
     )
     def post(self, request):
