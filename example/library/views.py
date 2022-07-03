@@ -18,16 +18,16 @@ class BookSchema(Schema):
             except models.Author.DoesNotExist:
                 raise DeserializationError('ID不存在')
 
-    id = fields.Integer(description='图书ID', example=1, required=True)
+    id = fields.Integer(description='图书ID', example=1, required=True, serialize_only=True)
     title = fields.String(description='书名', example='三体', required=True)
     author_id = fields.Integer(description='作者ID', example=1, required=True, validators=[ValidateAuthorID()])
-    created_at = fields.Datetime(description='创建时间', required=True)
+    created_at = fields.Datetime(description='创建时间', required=True, serialize_only=True)
 
 
 class AuthorSchema(Schema):
     """作者"""
 
-    id = fields.Integer(description='作者ID', example=1, required=True)
+    id = fields.Integer(description='作者ID', example=1, required=True, serialize_only=True)
     name = fields.String(description='作者姓名', example='刘慈溪', required=True, strip=True)
     birthday = fields.Date(description='生日', required=True)
 
@@ -44,15 +44,12 @@ class BooksAPI(API):
 
     @Operation(
         summary='创建图书',
-        body=BookSchema.partial(include=[
-            BookSchema.title.name,
-            BookSchema.author_id.name,
-        ]),
+        body=BookSchema,
         response=BookSchema,
     )
     def post(self, request):
         body = request.data['body']
-        return models.Book.objects.create(**body, created_at=datetime.datetime.now())
+        return models.Book.objects.create(**body)
 
 
 class BookAPI(API):
@@ -93,7 +90,7 @@ class AuthorAPI(API):
 
     @Operation(
         summary='创建作者',
-        body=AuthorSchema.partial(exclude=[AuthorSchema.id.name]),
+        body=AuthorSchema,
         response=AuthorSchema,
     )
     def post(self, request):

@@ -26,6 +26,7 @@ class Field:
             default_factory: typing.Callable[[], typing.Any] = None,  # only deserialize
             validators: typing.List[Validator] = None,  # only deserialize
             fallback: typing.Callable[[Exception], typing.Any] = None,  # only serialize
+            serialize_only=False,
 
             description: str = None,  # openapi spec
             example=None  # openapi spec
@@ -41,6 +42,7 @@ class Field:
         self.default_factory = default_factory
         self.validators = validators or []
         self.fallback = fallback
+        self.serialize_only = serialize_only
 
         self.description = description
         self.example = example
@@ -73,7 +75,8 @@ class Field:
             type=self._type,
             default=self.default or None,
             example=self.example,
-            description=self.description
+            description=self.description,
+            read_only=self.serialize_only,
         )
 
 
@@ -121,6 +124,9 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
         errors = defaultdict(list)
 
         for field in self._fields.values():
+            if field.serialize_only:
+                continue
+
             if field.key not in obj:
                 # required
                 if field.required:
@@ -171,17 +177,17 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
             schema_cls._anonymous = True
         return schema_cls
 
-    @classmethod
-    def partial(cls, *, include: typing.Iterable[str] = None, exclude: typing.Iterable[str] = None, name: str = None):
-        if include and exclude:
-            raise ValueError('不能同时定义 include 和 exclude')
-        fields = {}
-        for field in cls._fields.values():
-            if (not include and not exclude) or (
-                    include and field.name in include) or (
-                    exclude and field.name not in exclude):
-                fields[field.name] = field
-        return cls.from_dict(fields, name=name)
+    # @classmethod
+    # def partial(cls, *, include: typing.Iterable[str] = None, exclude: typing.Iterable[str] = None, name: str = None):
+    #     if include and exclude:
+    #         raise ValueError('不能同时定义 include 和 exclude')
+    #     fields = {}
+    #     for field in cls._fields.values():
+    #         if (not include and not exclude) or (
+    #                 include and field.name in include) or (
+    #                 exclude and field.name not in exclude):
+    #             fields[field.name] = field
+    #     return cls.from_dict(fields, name=name)
 
     def to_spec(self, spec_id) -> typing.Union[SchemaObject, ReferenceObject]:
         obj = super().to_spec()

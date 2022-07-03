@@ -222,9 +222,10 @@ class ParameterObject(_Object):
 
 class SchemaObject(_Object):
     # noinspection PyShadowingBuiltins
-    def __init__(self, *, type: str = None, default=None, **kwargs):
+    def __init__(self, *, type: str = None, default=None, read_only=False, **kwargs):
         self.type = type
         self.default = default
+        self.read_only = default_as_none(read_only, False)
         self.kwargs = kwargs
 
     def extra(self, **kwargs):
@@ -234,6 +235,7 @@ class SchemaObject(_Object):
         return {
             'type': self.type,
             'default': self.default,
+            'readOnly': self.read_only,
             **self.kwargs,
         }
 
