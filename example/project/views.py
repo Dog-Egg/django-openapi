@@ -10,8 +10,8 @@ class Auth(API):
     @Operation(
         summary='登录',
         body=Schema.from_dict(dict(
-            username=fields.String(required=True),
-            password=fields.String(required=True),
+            username=fields.String(),
+            password=fields.String(),
         ))
     )
     def post(self, request):

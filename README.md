@@ -25,13 +25,13 @@
     - [x] List
     - [x] String
     - [x] Integer
-    - [ ] Float
+    - [x] Float
     - [ ] Datetime
     - [ ] Time
     - [ ] Date
     - [ ] Url
     - [ ] Number
-    - [ ] Boolean
+    - [x] Boolean
     - [ ] Email
     - [ ] File
 - [ ] 自定义字段

@@ -2,9 +2,9 @@ import datetime
 import operator
 import typing
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Mapping, Iterable
 
-from openapi.enums import JsonSchemaType
+from openapi.enums import JsonSchemaType, JsonSchemaFormat
 from openapi.schemax.validators import Validator
 from openapi.schemax.exceptions import DeserializationError, SerializationError
 from openapi.spec.schema import SchemaObject, ReferenceObject, ComponentsObject
@@ -16,41 +16,46 @@ undefined = type('undefined', (), {'__bool__': lambda self: False})()
 class Field:
     _type = None
 
+    def __new__(cls, *args, **kwargs):
+        self = super().__new__(cls)
+        self._kwargs = kwargs
+        self._args = args
+        return self
+
     def __init__(
             self,
             *,
             key: str = None,
             attr: str = None,
-            required: bool = False,  # only deserialize
+            required: bool = None,  # apply to schema
             default=undefined,  # only deserialize
-            default_factory: typing.Callable[[], typing.Any] = None,  # only deserialize
             validators: typing.List[Validator] = None,  # only deserialize
             fallback: typing.Callable[[Exception], typing.Any] = None,  # only serialize
             serialize_only=False,
+            enum=None,
 
             description: str = None,  # openapi spec
             example=None  # openapi spec
     ):
-        if default is not undefined and default_factory is not None:
-            raise ValueError('不能同时定义 default 和 default_factory')
-
         self.key = key  # serialize: attr -> key
         self.attr = attr  # deserialize: key -> attr
         self.name = None  # field name
-        self.required = required
+        self.required = required if isinstance(required, bool) else (default is undefined)
         self.default = default
-        self.default_factory = default_factory
         self.validators = validators or []
         self.fallback = fallback
         self.serialize_only = serialize_only
+        self.enum = enum
 
         self.description = description
         self.example = example
 
     def deserialize(self, obj):
         obj = self._deserialize(obj)
-        errors = []
+        if self.enum and obj not in self.enum:
+            raise DeserializationError('必须是 %s 中的一个' % self.enum)
 
+        errors = []
         for validator in self.validators:
             try:
                 validator.validate(obj)
@@ -60,6 +65,11 @@ class Field:
         if errors:
             raise DeserializationError(errors)
         return obj
+
+    def copy_with(self, **kwargs):
+        _kwargs = self._kwargs.copy()
+        _kwargs.update(**kwargs)
+        return self.__class__(*self._args, **_kwargs)
 
     def _deserialize(self, obj):
         raise NotImplementedError
@@ -77,6 +87,7 @@ class Field:
             example=self.example,
             description=self.description,
             read_only=self.serialize_only,
+            enum=self.enum,
         )
 
 
@@ -87,7 +98,7 @@ class _ContainerField:
 class _SchemaMeta(type):
     _fields: typing.Dict[str, Field]
 
-    def __new__(mcs, classname, bases, attrs):
+    def __new__(mcs, classname, bases, attrs: dict):
         fields = {}
 
         # inherit fields
@@ -110,6 +121,8 @@ class _SchemaMeta(type):
         return cls
 
     def __getattr__(self, name):
+        # Schema.field      # ok
+        # Schema().field    # error
         if name in self._fields:
             return self._fields[name]
         return super().__getattribute__(name)
@@ -118,6 +131,15 @@ class _SchemaMeta(type):
 class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
     _anonymous = False
     _type = JsonSchemaType.OBJECT
+
+    def __init__(self, *args, required_fields=None, **kwargs, ):
+        super().__init__(*args, **kwargs)
+        self.__required_fields = required_fields
+
+    def __is_required(self, field: Field):
+        if self.__required_fields is not None:
+            return field.name in self.__required_fields
+        return field.required
 
     def _deserialize(self, obj):
         data = {}
@@ -129,14 +151,12 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
 
             if field.key not in obj:
                 # required
-                if field.required:
+                if self.__is_required(field):
                     errors[field.key].append('这个字段是必需的')
 
                 # default
                 if field.default is not undefined:
                     data[field.attr] = field.default
-                elif field.default_factory is not None:
-                    data[field.attr] = field.default_factory()
 
                 continue
 
@@ -163,7 +183,7 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
             try:
                 value = get_value(obj, field.attr)
             except (AttributeError, KeyError):
-                if field.required:
+                if self.__is_required(field):
                     raise
             else:
                 values[field.key] = field.serialize(value)
@@ -195,13 +215,30 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
         required = []
         for field in self._fields.values():
             properties[field.key] = field.to_spec(spec_id)
-            if field.required:
+            if self.__is_required(field):
                 required.append(field.key)
+
+        # required 不添加到 component schemas
         obj.extra(properties=properties, required=required, description=self.__class__.__doc__)
+
         if not self._anonymous:
+            # 非匿名 Schema 使用 openapi components 进行复用
             schema_name = self.__class__.__name__
+
+            # 注册的 Schema 不直接添加 required
+            # 清除 required
+            obj.extra(required=[])
+
+            # 注册到 openapi components
             ComponentsObject.register(spec_id=spec_id, component_name='schemas', key=schema_name, value=obj)
-            return ReferenceObject(ref='#/components/schemas/%s' % schema_name)
+
+            # 返回 Schema 引用
+            ref = ReferenceObject(ref='#/components/schemas/%s' % schema_name)
+            if required:
+                # required 利用 allOf 组合
+                return SchemaObject(allOf=[ref, {'required': required}])
+            return ref
+
         return obj
 
 
@@ -230,14 +267,59 @@ class String(Field):
 class Integer(Field):
     _type = JsonSchemaType.INTEGER
 
-    def _deserialize(self, obj):
+    def _deserialize(self, value):
         try:
-            return int(obj)
-        except ValueError:
+            f = float(value)
+        except (ValueError, TypeError):
             raise DeserializationError('不是一个整数')
 
+        i = int(f)
+        if i != f:
+            raise DeserializationError('不是一个整数')
+        return i
+
+    def _serialize(self, value):
+        if not isinstance(value, int):
+            raise SerializationError('不是一个整数')
+        return value
+
+
+class Float(Field):
+    _type = JsonSchemaType.NUMBER
+
+    def _deserialize(self, value):
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            raise DeserializationError('不是一个浮点数')
+
+    def _serialize(self, value):
+        if not isinstance(value, float):
+            raise SerializationError('不是一个浮点数')
+        return value
+
+    def to_spec(self, *args, **kwargs) -> SchemaObject:
+        obj = super().to_spec()
+        obj.extra(format=JsonSchemaFormat.FLOAT)
+        return obj
+
+
+class Boolean(Field):
+    _type = JsonSchemaType.BOOLEAN
+    TRUE_VALUES = {1, '1', 'true', 'True', True}
+    FALSE_VALUES = {0, '0', 'false', 'False', False}
+
+    def _deserialize(self, obj):
+        if obj in self.TRUE_VALUES:
+            return True
+        if obj in self.FALSE_VALUES:
+            return False
+        raise DeserializationError('不是一个有效布尔值')
+
     def _serialize(self, obj):
-        return int(obj)
+        if not isinstance(obj, bool):
+            raise SerializationError('不是一个有效布尔值')
+        return obj
 
 
 class List(Field, _ContainerField):
@@ -248,6 +330,9 @@ class List(Field, _ContainerField):
         super().__init__(*args, **kwargs)
 
     def _deserialize(self, obj):
+        if not isinstance(obj, Iterable):
+            raise DeserializationError('不是一个可迭代对象')
+
         rv = []
         errors = defaultdict(list)
 
@@ -262,6 +347,9 @@ class List(Field, _ContainerField):
         return rv
 
     def _serialize(self, obj):
+        if not isinstance(obj, Iterable):
+            raise SerializationError('不是一个可迭代对象')
+
         rv = []
         for item in obj:
             rv.append(self._field.serialize(item))
@@ -284,7 +372,7 @@ class Datetime(Field):
 
     def to_spec(self, *args, **kwargs) -> SchemaObject:
         obj = super().to_spec()
-        obj.extra(format='date-time')
+        obj.extra(format=JsonSchemaFormat.DATETIME)
         return obj
 
 
@@ -292,12 +380,19 @@ class Date(Field):
     _type = JsonSchemaType.STRING
 
     def _deserialize(self, date_string):
-        return datetime.date.fromisoformat(date_string)
+        if not isinstance(date_string, str):
+            raise DeserializationError('不是一个有效的日期值')
+        try:
+            return datetime.date.fromisoformat(date_string)
+        except ValueError:
+            raise DeserializationError('不是一个有效的日期值')
 
     def _serialize(self, date: datetime.date):
+        if not isinstance(date, datetime.date):
+            raise SerializationError('不是一个日期对象')
         return date.isoformat()
 
     def to_spec(self, *args, **kwargs) -> SchemaObject:
         obj = super().to_spec()
-        obj.extra(format='date')
+        obj.extra(format=JsonSchemaFormat.DATE)
         return obj

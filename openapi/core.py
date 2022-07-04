@@ -90,11 +90,11 @@ class OpenAPI(RouterABC):
 
     @property
     def urls(self):
-        urls = []
+        paths = []
         for route, api_cls in self._router.get_routes():
             route = self._handle_route(route, api_cls)
-            urls.append(django.urls.path(route, api_cls.as_view()))
-        return [urls, None, None]
+            paths.append(django.urls.path(route, api_cls.as_view()))
+        return paths, None, None
 
     def _handle_route(self, route: str, api_cls: typing.Type[API]):
         operations = {}
@@ -209,6 +209,8 @@ class Operation:
         data = {}
         if self.body_schema:
             data['body'] = self._parse_request_body(request)
+        if self.query_schema:
+            data['query'] = self._parse_request_query(request)
         request.data = data
 
     def _parse_request_query(self, request: HttpRequest):
@@ -221,9 +223,9 @@ class Operation:
         try:
             data = json.loads(request.body)
         except (json.JSONDecodeError, TypeError):
-            raise BadRequest
+            raise BadRequest({'message': '不是一个JSON'})
         if not isinstance(data, dict):
-            raise BadRequest
+            raise BadRequest({'message': '不是一个JSON对象'})
         try:
             return self.body_schema.deserialize(data)
         except DeserializationError as e:

@@ -11,8 +11,17 @@ class Location(Enum):
 class JsonSchemaType(Enum):
     STRING = 'string'
     INTEGER = 'integer'
+    NUMBER = 'number'
+    BOOLEAN = 'boolean'
     OBJECT = 'object'
     ARRAY = 'array'
+
+
+class JsonSchemaFormat(Enum):
+    DATETIME = 'date-time'
+    DATE = 'date'
+    FLOAT = 'float'
+    DOUBLE = 'double'
 
 
 class SecurityType(Enum):

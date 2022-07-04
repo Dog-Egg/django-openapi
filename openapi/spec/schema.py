@@ -1,11 +1,12 @@
 import typing
 from http import HTTPStatus
-
-__version__ = '3.0.3'
+from collections import OrderedDict
 
 from openapi.enums import Location, JsonSchemaType, SecurityType
 from openapi.spec._register import ComponentRegistry
 from openapi.spec.utils import default_as_none
+
+__version__ = '3.0.3'
 
 
 class _Object:
@@ -110,16 +111,16 @@ class PathItemObject(_Object):
         self.trace = trace
 
     def _serialize(self):
-        return {
-            'get': self.get,
-            'put': self.put,
-            'post': self.post,
-            'delete': self.delete,
-            'options': self.options,
-            'head': self.head,
-            'patch': self.patch,
-            'trace': self.trace,
-        }
+        return OrderedDict([
+            ('get', self.get),
+            ('put', self.put),
+            ('post', self.post),
+            ('delete', self.delete),
+            ('options', self.options),
+            ('head', self.head),
+            ('patch', self.patch),
+            ('trace', self.trace),
+        ])
 
 
 class OperationObject(_Object):
@@ -340,7 +341,7 @@ if __name__ == '__main__':
                     ParameterObject(name='arg1', location=Location.QUERY,
                                     schema=SchemaObject(type=JsonSchemaType.INTEGER))],
                 responses=ResponsesObject({
-                    '200': ResponseObject(description='description1')
+                    200: ResponseObject(description='description1')
                 }),
                 request_body=RequestBodyObject(
                     content={
