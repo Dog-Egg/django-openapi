@@ -18,8 +18,8 @@ class Field:
 
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls)
-        self._kwargs = kwargs
-        self._args = args
+        self.__kwargs = kwargs
+        self.__args = args
         return self
 
     def __init__(
@@ -67,9 +67,10 @@ class Field:
         return obj
 
     def copy_with(self, **kwargs):
-        _kwargs = self._kwargs.copy()
+        _args = self.__args
+        _kwargs = self.__kwargs.copy()
         _kwargs.update(**kwargs)
-        return self.__class__(*self._args, **_kwargs)
+        return self.__class__(*_args, **_kwargs)
 
     def _deserialize(self, obj):
         raise NotImplementedError
