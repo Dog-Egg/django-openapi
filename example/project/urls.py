@@ -17,12 +17,14 @@ from django.contrib import admin
 from django.urls import path
 
 from library import views
+from library.views import BookSchema
 from openapi.core import OpenAPI
+from openapi.parameters import Path
 from .views import Auth
 
 openapi = OpenAPI(title='This is example')
-openapi.add_route('books', views.BooksAPI) \
-    .add_route('{book_id}', views.BookAPI)
+openapi.add_route('books', views.BooksAPI)
+openapi.add_route(Path('books/{book_id}', book_id=BookSchema.id), views.BookAPI)
 openapi.add_route('authors', views.AuthorAPI)
 openapi.add_route('auth', Auth)
 

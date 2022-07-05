@@ -5,7 +5,7 @@ from collections import defaultdict
 from collections.abc import Mapping, Iterable
 
 from openapi.enums import JsonSchemaType, JsonSchemaFormat
-from openapi.schemax.validators import Validator
+from openapi.schemax.validators import Validator, Choices
 from openapi.schemax.exceptions import DeserializationError, SerializationError
 from openapi.spec.schema import SchemaObject, ReferenceObject, ComponentsObject
 from openapi.utils import make_instance
@@ -28,11 +28,12 @@ class Field:
             key: str = None,
             attr: str = None,
             required: bool = None,  # apply to schema
+            nullable: bool = False,
             default=undefined,  # only deserialize
             validators: typing.List[Validator] = None,  # only deserialize
             fallback: typing.Callable[[Exception], typing.Any] = None,  # only serialize
             serialize_only=False,
-            enum=None,
+            choices=None,
 
             description: str = None,  # openapi spec
             example=None  # openapi spec
@@ -41,20 +42,28 @@ class Field:
         self.attr = attr  # deserialize: key -> attr
         self.name = None  # field name
         self.required = required if isinstance(required, bool) else (default is undefined)
+        self.nullable = nullable
         self.default = default
         self.validators = validators or []
         self.fallback = fallback
         self.serialize_only = serialize_only
-        self.enum = enum
 
         self.description = description
         self.example = example
 
-    def deserialize(self, obj):
-        obj = self._deserialize(obj)
-        if self.enum and obj not in self.enum:
-            raise DeserializationError('必须是 %s 中的一个' % self.enum)
+        # enum
+        self.choices = choices
+        if choices:
+            self.validators.append(Choices(choices))
 
+    def deserialize(self, obj):
+        if obj is None:
+            if self.nullable:
+                return obj
+            else:
+                raise DeserializationError('不能为 None')
+
+        obj = self._deserialize(obj)
         errors = []
         for validator in self.validators:
             try:
@@ -66,20 +75,25 @@ class Field:
             raise DeserializationError(errors)
         return obj
 
+    def _deserialize(self, obj):
+        raise NotImplementedError
+
+    def serialize(self, obj):
+        if obj is None:
+            if self.nullable:
+                return obj
+            else:
+                raise SerializationError('不能为 null')
+        return self._serialize(obj)
+
+    def _serialize(self, obj):
+        raise NotImplementedError
+
     def copy_with(self, **kwargs):
         _args = self.__args
         _kwargs = self.__kwargs.copy()
         _kwargs.update(**kwargs)
         return self.__class__(*_args, **_kwargs)
-
-    def _deserialize(self, obj):
-        raise NotImplementedError
-
-    def serialize(self, obj):
-        return self._serialize(obj)
-
-    def _serialize(self, obj):
-        raise NotImplementedError
 
     def to_spec(self, *args, **kwargs) -> SchemaObject:
         return SchemaObject(
@@ -88,7 +102,8 @@ class Field:
             example=self.example,
             description=self.description,
             read_only=self.serialize_only,
-            enum=self.enum,
+            enum=self.choices,
+            nullable=self.nullable,
         )
 
 
@@ -133,7 +148,7 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
     _anonymous = False
     _type = JsonSchemaType.OBJECT
 
-    def __init__(self, *args, required_fields=None, **kwargs, ):
+    def __init__(self, *args, required_fields=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.__required_fields = required_fields
 
@@ -326,8 +341,8 @@ class Boolean(Field):
 class List(Field, _ContainerField):
     _type = JsonSchemaType.ARRAY
 
-    def __init__(self, field_or_cls: typing.Union[Field, typing.Type[Field]], *args, **kwargs):
-        self._field: Field = make_instance(field_or_cls)
+    def __init__(self, field_or_cls: typing.Union[Field, typing.Type[Field]] = None, *args, **kwargs):
+        self._field: Field = make_instance(field_or_cls) or Any()
         super().__init__(*args, **kwargs)
 
     def _deserialize(self, obj):
@@ -396,4 +411,13 @@ class Date(Field):
     def to_spec(self, *args, **kwargs) -> SchemaObject:
         obj = super().to_spec()
         obj.extra(format=JsonSchemaFormat.DATE)
+        return obj
+
+
+class Any(Field):
+    # TODO nullable? _type? enum?
+    def _deserialize(self, obj):
+        return obj
+
+    def _serialize(self, obj):
         return obj

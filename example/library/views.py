@@ -1,6 +1,7 @@
-from openapi.http.exceptions import NotFound
-from openapi.schemax.exceptions import DeserializationError
 from . import models
+from openapi.http.exceptions import NotFound
+from openapi.parameters import Query, Body
+from openapi.schemax.exceptions import DeserializationError
 from openapi.core import API, Operation
 from openapi.schemax import fields, validators
 from openapi.schemax.fields import Schema
@@ -18,7 +19,7 @@ class BookSchema(Schema):
 
     id = fields.Integer(description='图书ID', example=1, serialize_only=True)
     title = fields.String(description='书名', example='三体')
-    tag = fields.String(description='标签', enum=['科幻', '喜剧', '传记'])
+    tag = fields.String(description='标签', choices=['科幻', '喜剧', '传记'])
     author_id = fields.Integer(description='作者ID', example=1, validators=[ValidateAuthorID()])
     created_at = fields.Datetime(description='创建时间', serialize_only=True)
 
@@ -36,31 +37,21 @@ class BooksAPI(API):
 
     @Operation(
         summary='获取图书列表',
-        query={
-            'tag': BookSchema.tag.copy_with(required=False)
-        },
-        response=Schema.from_dict({'results': fields.List(BookSchema)})
+        response={'results': fields.List(BookSchema)}
     )
-    def get(self, request):
-        query = request.data['query']
+    def get(self, request, query=Query(dict(tag=BookSchema.tag.copy_with(required=False)))):
         return {'results': models.Book.objects.filter(**query).all()}
 
     @Operation(
         summary='创建图书',
-        body=BookSchema,
         response=BookSchema,
     )
-    def post(self, request):
-        body = request.data['body']
+    def post(self, request, body=Body(BookSchema)):
         return models.Book.objects.create(**body)
 
 
 class BookAPI(API):
     tags = ['图书馆']
-
-    path_schema = {
-        'book_id': BookSchema.id
-    }
 
     @staticmethod
     def _get_book(pk):
@@ -77,27 +68,17 @@ class BookAPI(API):
     def get(self, request, book_id):
         return self._get_book(book_id)
 
-    def _update(self, request, book_id):
+    @Operation(response=BookSchema)
+    def put(self, request, book_id, body=Body(BookSchema)):
         book = self._get_book(book_id)
-        body = request.data['body']
         for name, value in body.items():
             setattr(book, name, value)
         book.save()
         return book
 
-    @Operation(
-        body=BookSchema,
-        response=BookSchema,
-    )
-    def put(self, request, book_id):
-        return self._update(request, book_id)
-
-    @Operation(
-        body=BookSchema(required_fields=[]),
-        response=BookSchema,
-    )
-    def patch(self, request, book_id):
-        return self._update(request, book_id)
+    @Operation(response=BookSchema)
+    def patch(self, request, book_id, body=Body(BookSchema(required_fields=[]))):
+        return self.put(request, book_id, body)
 
     def delete(self, request, book_id):
         self._get_book(book_id).delete()
@@ -108,16 +89,15 @@ class AuthorAPI(API):
 
     @Operation(
         summary='作者列表',
-        response=Schema.from_dict({'results': fields.List(AuthorSchema)})
+        response={'results': fields.List(AuthorSchema)}
     )
     def get(self, request):
         return {'results': models.Author.objects.all()}
 
     @Operation(
         summary='创建作者',
-        body=AuthorSchema,
         response=AuthorSchema,
     )
-    def post(self, request):
-        instance = models.Author.objects.create(**request.data['body'])
+    def post(self, request, body=Body(AuthorSchema)):
+        instance = models.Author.objects.create(**body)
         return instance

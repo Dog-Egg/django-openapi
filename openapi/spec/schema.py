@@ -112,11 +112,11 @@ class PathItemObject(_Object):
 
     def _serialize(self):
         return OrderedDict([
+            ('options', self.options),
             ('get', self.get),
             ('put', self.put),
             ('post', self.post),
             ('delete', self.delete),
-            ('options', self.options),
             ('head', self.head),
             ('patch', self.patch),
             ('trace', self.trace),
@@ -192,7 +192,7 @@ class ParameterObject(_Object):
             name: str,
             location: str,
             description: str = None,
-            required: bool = None,
+            required: bool = False,
             deprecated: bool = None,
             schema: 'SchemaObject' = None,
             example=None
@@ -205,7 +205,7 @@ class ParameterObject(_Object):
         self.name = name
         self.location = location
         self.description = description
-        self.required = required
+        self.required = default_as_none(required, False)
         self.deprecated = deprecated
         self.schema = schema
         self.example = example
@@ -223,10 +223,11 @@ class ParameterObject(_Object):
 
 class SchemaObject(_Object):
     # noinspection PyShadowingBuiltins
-    def __init__(self, *, type: str = None, default=None, read_only=False, **kwargs):
+    def __init__(self, *, type: str = None, default=None, read_only=False, nullable=False, **kwargs):
         self.type = type
         self.default = default
         self.read_only = default_as_none(read_only, False)
+        self.nullable = default_as_none(nullable, False)
         self.kwargs = kwargs
 
     def extra(self, **kwargs):

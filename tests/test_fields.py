@@ -45,32 +45,26 @@ def test_serialize(field, input_value, output_value):
     [
         # string
         (fields.String, 1, '必须是字符串'),
-        (fields.String, None, '必须是字符串'),
 
         # integer
         (fields.Integer, '1', '不是一个整数'),
         (fields.Integer, 1.1, '不是一个整数'),
         (fields.Integer, 'a', '不是一个整数'),
-        (fields.Integer, None, '不是一个整数'),
 
         # float
         (fields.Float, 1, '不是一个浮点数'),
         (fields.Float, '1.1', '不是一个浮点数'),
         (fields.Float, 'a', '不是一个浮点数'),
-        (fields.Float, None, '不是一个浮点数'),
 
         # list
         (fields.List(fields.Integer), 123, '不是一个可迭代对象'),
-        (fields.List(fields.Integer), None, '不是一个可迭代对象'),
 
         # boolean
         (fields.Boolean, 1, '不是一个有效布尔值'),
         (fields.Boolean, '1', '不是一个有效布尔值'),
-        (fields.Boolean, None, '不是一个有效布尔值'),
 
         # date
         (fields.Date, '2022-07-04', '不是一个日期对象'),
-        (fields.Date, None, '不是一个日期对象'),
     ]
 )
 def test_serialize_error(field, value, error_message):
@@ -129,36 +123,50 @@ def test_deserialize(field, input_value, output_value):
     [
         # string
         (fields.String, 1, '必须是字符串'),
-        (fields.String, None, '必须是字符串'),
 
         # integer
         (fields.Integer, 'a', '不是一个整数'),
         (fields.Integer, '1.1', '不是一个整数'),
         (fields.Integer, 1.1, '不是一个整数'),
-        (fields.Integer, None, '不是一个整数'),
 
         # float
         (fields.Float, 'a', '不是一个浮点数'),
-        (fields.Float, None, '不是一个浮点数'),
 
         # list
         (fields.List(fields.Integer), 123, '不是一个可迭代对象'),
-        (fields.List(fields.Integer), None, '不是一个可迭代对象'),
 
         # boolean
         (fields.Boolean, 'tRue', '不是一个有效布尔值'),
         (fields.Boolean, 2, '不是一个有效布尔值'),
-        (fields.Boolean, None, '不是一个有效布尔值'),
 
         # date
         (fields.Date, '2022-13-05', '不是一个有效的日期值'),
         (fields.Date, '2022-5-1', '不是一个有效的日期值'),
         (fields.Date, '20220501', '不是一个有效的日期值'),
         (fields.Date, 20220501, '不是一个有效的日期值'),
-        (fields.Date, None, '不是一个有效的日期值'),
     ]
 )
 def test_deserialize_error(field, value, error_message):
     """反序列化错误测试"""
     with pytest.raises(DeserializationError, match=error_message):
         make_instance(field).deserialize(value)
+
+
+@pytest.mark.parametrize('field', [
+    fields.String,
+    fields.Integer,
+    fields.Float,
+    fields.List,
+    fields.Boolean,
+    fields.Date,
+    fields.Schema,
+    fields.Any,
+])
+def test_nullable(field):
+    assert field(nullable=True).serialize(None) is None
+    assert field(nullable=True).deserialize(None) is None
+
+    with pytest.raises(SerializationError, match='不能为 null'):
+        field().serialize(None)
+    with pytest.raises(DeserializationError, match='不能为 None'):
+        field().deserialize(None)

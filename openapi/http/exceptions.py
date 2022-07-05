@@ -11,3 +11,7 @@ class BadRequest(HttpException):
 
 class NotFound(HttpException):
     status = 404
+
+
+class MethodNotAllowed(HttpException):
+    status = 405

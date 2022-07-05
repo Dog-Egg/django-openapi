@@ -41,3 +41,12 @@ class Range(Validator):
         elif self.max is not None:
             if value > self.max:
                 raise DeserializationError('最大为 %s' % self.max)
+
+
+class Choices(Validator):
+    def __init__(self, choices):
+        self.choices = set(choices or [])
+
+    def validate(self, value) -> None:
+        if value not in self.choices:
+            raise DeserializationError('必须是 %s 中的一个' % list(self.choices))
