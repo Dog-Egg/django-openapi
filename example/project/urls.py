@@ -16,21 +16,24 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
+from openapi.core import OpenAPI
+from openapi.views import swagger_ui
+from openapi.parameters import Path
+
+from .views import Auth
 from library import views
 from library.views import BookSchema
-from openapi.core import OpenAPI
-from openapi.parameters import Path
-from .views import Auth
 
 openapi = OpenAPI(title='This is example')
-openapi.add_route('books', views.BooksAPI)
-openapi.add_route(Path('books/{book_id}', book_id=BookSchema.id), views.BookAPI)
-openapi.add_route('authors', views.AuthorAPI)
-openapi.add_route('auth', Auth)
+openapi.add_route('/books', views.BooksAPI)
+openapi.add_route(Path('/books/{book_id}', book_id=BookSchema.id), views.BookAPI)
+openapi.add_route('/authors', views.AuthorAPI)
+openapi.add_route('/auth', Auth)
 
 urlpatterns = [
-    path('', openapi.swagger_ui),
     path('', openapi.urls),
-    path('api-spec', openapi.get_spec),
+    path('api-spec', openapi.api_spec, name='api-spec'),
+    path('', swagger_ui('api-spec')),
+
     path('admin/', admin.site.urls),
 ]

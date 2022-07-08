@@ -44,7 +44,6 @@
 
 ### 配置
 
-- [ ] Swagger Info
 - [ ] Response Schema (200, 400, 500...)
 
 ### 扩展

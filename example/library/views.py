@@ -37,14 +37,14 @@ class BooksAPI(API):
 
     @Operation(
         summary='获取图书列表',
-        response={'results': fields.List(BookSchema)}
+        response_schema={'results': fields.List(BookSchema)}
     )
     def get(self, request, query=Query(dict(tag=BookSchema.tag.copy_with(required=False)))):
         return {'results': models.Book.objects.filter(**query).all()}
 
     @Operation(
         summary='创建图书',
-        response=BookSchema,
+        response_schema=BookSchema,
     )
     def post(self, request, body=Body(BookSchema)):
         return models.Book.objects.create(**body)
@@ -62,13 +62,13 @@ class BookAPI(API):
 
     @Operation(
         summary='获取图书详情',
-        response=BookSchema,
+        response_schema=BookSchema,
         deprecated=True,
     )
     def get(self, request, book_id):
         return self._get_book(book_id)
 
-    @Operation(response=BookSchema)
+    @Operation(response_schema=BookSchema)
     def put(self, request, book_id, body=Body(BookSchema)):
         book = self._get_book(book_id)
         for name, value in body.items():
@@ -76,7 +76,7 @@ class BookAPI(API):
         book.save()
         return book
 
-    @Operation(response=BookSchema)
+    @Operation(response_schema=BookSchema)
     def patch(self, request, book_id, body=Body(BookSchema(required_fields=[]))):
         return self.put(request, book_id, body)
 
@@ -89,14 +89,14 @@ class AuthorAPI(API):
 
     @Operation(
         summary='作者列表',
-        response={'results': fields.List(AuthorSchema)}
+        response_schema={'results': fields.List(AuthorSchema)}
     )
     def get(self, request):
         return {'results': models.Author.objects.all()}
 
     @Operation(
         summary='创建作者',
-        response=AuthorSchema,
+        response_schema=AuthorSchema,
     )
     def post(self, request, body=Body(AuthorSchema)):
         instance = models.Author.objects.create(**body)
