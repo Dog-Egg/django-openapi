@@ -15,7 +15,17 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from openapi.core import OpenAPI
+from openapi.views import swagger_ui
+
+from books import views
+
+openapi = OpenAPI(title='This is example')
+openapi.add_route('books', views.BooksAPI)
 
 urlpatterns = [
+    path('', openapi.urls),
+    path('api-spec', openapi.api_spec, name='api-spec'),
+    path('swagger-ui', swagger_ui('api-spec')),
     path('admin/', admin.site.urls),
 ]

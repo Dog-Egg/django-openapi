@@ -8,4 +8,5 @@ setup(
     author='Lee',
     author_email='294622946@qq.com',
     url='https://github.com/Dog-Egg/django-openapi',
+    include_package_data=True,
 )

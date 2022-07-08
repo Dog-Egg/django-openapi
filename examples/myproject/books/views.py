@@ -1,3 +1,7 @@
-from django.shortcuts import render
+from django.http import JsonResponse
+from openapi.core import API
 
-# Create your views here.
+
+class BooksAPI(API):
+    def get(self, request):
+        return JsonResponse({})

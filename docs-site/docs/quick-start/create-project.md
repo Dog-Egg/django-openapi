@@ -40,3 +40,25 @@ _更多项目创建说明查看 [Django 文档](https://docs.djangoproject.com/z
 ```bash
 pip install git+https://github.com/Dog-Egg/django-openapi.git
 ```
+
+在项目 setting 文件中的 `INSTALLED_APPS` 添加 books 应用 和 Django-OpenAPI 应用
+
+```jsx title="/myproject/settings.py"
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    // highlight-start
+    'books',
+    'openapi'
+    // highlight-end
+]
+```
+
+## 创建一个 API
+```jsx title="/books/views.py"
+
+```
