@@ -25,6 +25,83 @@ from openapi.utils import make_schema
 logger = logging.getLogger(__name__)
 
 
+class Operation:
+    _HANDLER_OPERATION_KEY = '_operation'
+
+    def __init__(
+            self,
+            *,
+            tags: typing.List[str] = None,
+            summary: str = None,
+            description: str = None,
+            response_schema: GeneralSchemaType = None,
+            deprecated: bool = False,
+            include_in_spec=True,
+    ):
+        self.tags = tags or []
+        self.summary = summary
+        self.description = description
+
+        self.response_schema: Schema = response_schema and make_schema(response_schema)
+        self.deprecated = deprecated
+        self.include_in_spec = include_in_spec
+
+        self.parser: ParameterParser = ...
+
+    @classmethod
+    def from_handler(cls, handler) -> 'Operation':
+        if not hasattr(handler, cls._HANDLER_OPERATION_KEY):
+            self = cls()
+            self(handler)
+        return getattr(handler, cls._HANDLER_OPERATION_KEY)
+
+    def __call__(self, handler):
+        self.parser = ParameterParser(handler)
+        setattr(handler, self._HANDLER_OPERATION_KEY, self)
+        return handler
+
+    def wrap_invoke(self, handler, request, *args, **kwargs):
+        kwargs.update(self.parser.parse_request(request))
+
+        rv = handler(request, *args, **kwargs)
+
+        if self.response_schema and not isinstance(rv, HttpResponse):
+            rv = self.response_schema.serialize(rv)
+        return rv
+
+    def to_spec(self, spec_id, *, path_parameters, apicls: typing.Type['API']) -> typing.Optional[OperationObject]:
+        if not self.include_in_spec:
+            return
+
+        tags = self.tags.copy()
+        tags.extend(apicls.tags)
+
+        parameters = self.parser.get_spec_parameters()
+        parameters.extend(path_parameters)
+
+        return OperationObject(
+            summary=self.summary,
+            parameters=parameters,
+            tags=tags,
+            deprecated=self.deprecated,
+            request_body=self.parser.get_spec_request_body(spec_id),
+            responses=ResponsesObject(
+                responses={
+                    200: ResponseObject(
+                        description='successful',
+                        content={
+                            'application/json': MediaTypeObject(
+                                schema=self.response_schema and self.response_schema.to_spec(spec_id)
+                            )
+                        }
+                    ),
+                    500: ResponseObject(
+                        description='error'
+                    )
+                })
+        )
+
+
 class API(View):
     __path_parameters__: typing.Dict[str, Field]
     tags: typing.List[str] = []
@@ -67,6 +144,10 @@ class API(View):
                 kwargs[name] = field.deserialize(kwargs[name])
             except DeserializationError:
                 raise NotFound({'message': 'Not Found'})
+
+    @Operation(include_in_spec=False)
+    def options(self, *args, **kwargs):
+        return super().options(*args, **kwargs)
 
 
 class OpenAPI:
@@ -156,75 +237,3 @@ class OpenAPI:
     @staticmethod
     def swagger_ui(request):
         return render(request, 'swagger-ui.html')
-
-
-class Operation:
-    _HANDLER_OPERATION_KEY = '_operation'
-
-    def __init__(
-            self,
-            *,
-            tags: typing.List[str] = None,
-            summary: str = None,
-            description: str = None,
-            response_schema: GeneralSchemaType = None,
-            deprecated: bool = False,
-    ):
-        self.tags = tags or []
-        self.summary = summary
-        self.description = description
-
-        self.response_schema: Schema = response_schema and make_schema(response_schema)
-        self.deprecated = deprecated
-
-        self.parser: ParameterParser = ...
-
-    @classmethod
-    def from_handler(cls, handler) -> 'Operation':
-        if not hasattr(handler, cls._HANDLER_OPERATION_KEY):
-            self = cls()
-            self(handler)
-        return getattr(handler, cls._HANDLER_OPERATION_KEY)
-
-    def __call__(self, handler):
-        self.parser = ParameterParser(handler)
-        setattr(handler, self._HANDLER_OPERATION_KEY, self)
-        return handler
-
-    def wrap_invoke(self, handler, request, *args, **kwargs):
-        kwargs.update(self.parser.parse_request(request))
-
-        rv = handler(request, *args, **kwargs)
-
-        if self.response_schema and not isinstance(rv, HttpResponse):
-            rv = self.response_schema.serialize(rv)
-        return rv
-
-    def to_spec(self, spec_id, *, path_parameters, apicls: typing.Type[API]) -> OperationObject:
-        tags = self.tags.copy()
-        tags.extend(apicls.tags)
-
-        parameters = self.parser.get_spec_parameters()
-        parameters.extend(path_parameters)
-
-        return OperationObject(
-            summary=self.summary,
-            parameters=parameters,
-            tags=tags,
-            deprecated=self.deprecated,
-            request_body=self.parser.get_spec_request_body(spec_id),
-            responses=ResponsesObject(
-                responses={
-                    200: ResponseObject(
-                        description='successful',
-                        content={
-                            'application/json': MediaTypeObject(
-                                schema=self.response_schema and self.response_schema.to_spec(spec_id)
-                            )
-                        }
-                    ),
-                    500: ResponseObject(
-                        description='error'
-                    )
-                })
-        )
