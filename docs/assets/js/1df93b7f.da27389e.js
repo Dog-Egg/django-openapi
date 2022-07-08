@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkdocs_site=self.webpackChunkdocs_site||[]).push([[237],{9754:(e,t,n)=>{n.r(t),n.d(t,{default:()=>c});var s=n(7294),a=n(6775);function c(){return s.createElement(a.l_,{to:"/django-openapi/intro"})}}}]);

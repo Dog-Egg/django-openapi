@@ -58,7 +58,47 @@ INSTALLED_APPS = [
 ]
 ```
 
-## 创建一个 API
-```jsx title="/books/views.py"
+## 创建一个简单 API
 
+```python title="/books/views.py"
+from django.http import JsonResponse
+from openapi.core import API
+
+class BooksAPI(API):
+    def get(self, request):
+        return JsonResponse({})
 ```
+
+然后将 `BooksAPI` 添加到 `OpenAPI` 中
+
+```python title="/myproject/urls"
+from django.contrib import admin
+from django.urls import path
+# highlight-start
+from openapi.core import OpenAPI
+from openapi.views import swagger_ui
+
+from books import views
+
+openapi = OpenAPI(title='This is example')
+openapi.add_route('books', views.BooksAPI)
+# highlight-end
+
+urlpatterns = [
+    # highlight-start
+    path('', openapi.urls),
+    path('api-spec', openapi.api_spec, name='api-spec'),
+    path('swagger-ui', swagger_ui('api-spec')),
+    # highlight-end
+
+    path('admin/', admin.site.urls),
+]
+```
+
+现在运行项目，并在浏览器访问 http://127.0.0.1:8000/swagger-ui
+
+```bash
+python manage.py runserver
+```
+
+<BrowserWindow url="http://127.0.0.1:8000/swagger-ui">123</BrowserWindow>
