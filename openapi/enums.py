@@ -8,7 +8,7 @@ class Location(Enum):
     PATH = 'path'
 
 
-class JsonSchemaType(Enum):
+class DataType(Enum):
     STRING = 'string'
     INTEGER = 'integer'
     NUMBER = 'number'
@@ -17,11 +17,13 @@ class JsonSchemaType(Enum):
     ARRAY = 'array'
 
 
-class JsonSchemaFormat(Enum):
+class DataFormat(Enum):
     DATETIME = 'date-time'
     DATE = 'date'
     FLOAT = 'float'
     DOUBLE = 'double'
+    BINARY = 'binary'
+    PASSWORD = 'password'
 
 
 class SecurityType(Enum):

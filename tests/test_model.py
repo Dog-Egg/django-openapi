@@ -59,6 +59,12 @@ def test_field_visibility():
         assert SchemaA().foo
 
 
+def test_field_name():
+    with pytest.raises(ValueError, match="Field name cannot start with '_'"):
+        class SchemaA(schemas.Model):
+            _name = schemas.String()
+
+
 def test_field_conflict():
     """Schema 字段和方法字段冲突
 
@@ -67,12 +73,13 @@ def test_field_conflict():
 
     class SchemaA(schemas.Model):
         deserialize = schemas.Integer()  # 和内置方法重名
-        _type = schemas.Integer()  # 和内置属性重名
+        Meta = schemas.Integer()  # 和内置属性重名
 
     assert SchemaA.deserialize == schemas.Model.deserialize
-    assert SchemaA._type == 'object'
+    assert isinstance(SchemaA.Meta, schemas.Schema)
+    assert SchemaA._metadata
     # noinspection PyCallingNonCallable
-    assert SchemaA().deserialize({'deserialize': '1', '_type': '2'}) == {'deserialize': 1, '_type': 2}
+    assert SchemaA().deserialize({'deserialize': '1', 'Meta': '2'}) == {'deserialize': 1, 'Meta': 2}
 
 
 def test_deserialize():

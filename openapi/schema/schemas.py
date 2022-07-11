@@ -1,10 +1,11 @@
 import datetime
+import inspect
 import operator
 import typing
 from collections import defaultdict
 from collections.abc import Mapping, Iterable
 
-from openapi.enums import JsonSchemaType, JsonSchemaFormat
+from openapi.enums import DataType, DataFormat
 from openapi.schema.validators import Validator, Choices
 from openapi.schema.exceptions import DeserializationError, SerializationError
 from openapi.spec.schema import SchemaObject, ReferenceObject, ComponentsObject
@@ -12,9 +13,29 @@ from openapi.utils import make_instance
 
 undefined = type('undefined', (), {'__bool__': lambda self: False})()
 
+_DEFAULT_METADATA = dict(
+    data_type=DataType.STRING,
+    data_format=None,
+)
 
-class Schema:
-    _type = None
+
+class _SchemaMeta(type):
+
+    def __new__(mcs, name, bases, attrs):
+        if bases:
+            # 继承 metadata
+            metadata = getattr(bases[0], '_metadata', _DEFAULT_METADATA).copy()
+            meta = attrs.get('Meta')
+            if inspect.isclass(meta):
+                for key, val in _DEFAULT_METADATA.items():
+                    metadata[key] = getattr(meta, key, val)
+                del attrs['Meta']
+            attrs['_metadata'] = metadata
+        return super().__new__(mcs, name, bases, attrs)
+
+
+class Schema(metaclass=_SchemaMeta):
+    _metadata: dict
 
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls)
@@ -97,13 +118,14 @@ class Schema:
 
     def to_spec(self, *args, **kwargs) -> SchemaObject:
         return SchemaObject(
-            type=self._type,
+            type=self._metadata['data_type'],
             default=self.default or None,
             example=self.example,
             description=self.description,
             read_only=self.serialize_only,
             enum=self.enum,
             nullable=self.nullable,
+            format=self._metadata['data_format']
         )
 
 
@@ -111,7 +133,7 @@ class _ContainerSchema:
     pass
 
 
-class _ModelMeta(type):
+class _ModelMeta(_SchemaMeta):
     _fields: typing.Dict[str, Schema]
 
     def __new__(mcs, classname, bases, attrs: dict):
@@ -124,6 +146,9 @@ class _ModelMeta(type):
 
         for name, field in attrs.copy().items():
             if isinstance(field, Schema):
+                if name.startswith('_'):
+                    raise ValueError('Field name cannot start with %r' % '_')
+
                 field.name = name
                 if field.key is None:
                     field.key = name
@@ -131,10 +156,8 @@ class _ModelMeta(type):
                     field.attr = name
                 fields[name] = field
                 del attrs[name]
-
-        cls = super().__new__(mcs, classname, bases, attrs)
-        cls._fields = fields
-        return cls
+            attrs['_fields'] = fields
+        return super().__new__(mcs, classname, bases, attrs)
 
     def __getattr__(self, name):
         # Model.field      # ok
@@ -146,7 +169,9 @@ class _ModelMeta(type):
 
 class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
     _anonymous = False
-    _type = JsonSchemaType.OBJECT
+
+    class Meta:
+        data_type = DataType.OBJECT
 
     def __init__(self, *args, required_fields=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -259,7 +284,8 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
 
 
 class String(Schema):
-    _type = JsonSchemaType.STRING
+    class Meta:
+        data_type = DataType.STRING
 
     def __init__(self, *args, strip=False, **kwargs):
         super().__init__(*args, **kwargs)
@@ -281,7 +307,8 @@ class String(Schema):
 
 
 class Integer(Schema):
-    _type = JsonSchemaType.INTEGER
+    class Meta:
+        data_type = DataType.INTEGER
 
     def _deserialize(self, value):
         try:
@@ -301,7 +328,9 @@ class Integer(Schema):
 
 
 class Float(Schema):
-    _type = JsonSchemaType.NUMBER
+    class Meta:
+        data_type = DataType.NUMBER
+        data_format = DataFormat.FLOAT
 
     def _deserialize(self, value):
         try:
@@ -314,16 +343,13 @@ class Float(Schema):
             raise SerializationError('不是一个浮点数')
         return value
 
-    def to_spec(self, *args, **kwargs) -> SchemaObject:
-        obj = super().to_spec()
-        obj.extra(format=JsonSchemaFormat.FLOAT)
-        return obj
-
 
 class Boolean(Schema):
-    _type = JsonSchemaType.BOOLEAN
     TRUE_VALUES = {1, '1', 'true', 'True', True}
     FALSE_VALUES = {0, '0', 'false', 'False', False}
+
+    class Meta:
+        data_type = DataType.BOOLEAN
 
     def _deserialize(self, obj):
         if obj in self.TRUE_VALUES:
@@ -339,7 +365,8 @@ class Boolean(Schema):
 
 
 class List(Schema, _ContainerSchema):
-    _type = JsonSchemaType.ARRAY
+    class Meta:
+        data_type = DataType.ARRAY
 
     def __init__(self, field_or_cls: typing.Union[Schema, typing.Type[Schema]] = None, *args, **kwargs):
         self._field: Schema = make_instance(field_or_cls) or Any()
@@ -378,7 +405,9 @@ class List(Schema, _ContainerSchema):
 
 
 class Datetime(Schema):
-    _type = JsonSchemaType.STRING
+    class Meta:
+        data_type = DataType.STRING
+        data_format = DataFormat.DATETIME
 
     def _deserialize(self, obj):
         pass
@@ -386,14 +415,11 @@ class Datetime(Schema):
     def _serialize(self, obj: datetime.datetime):
         return obj.isoformat()
 
-    def to_spec(self, *args, **kwargs) -> SchemaObject:
-        obj = super().to_spec()
-        obj.extra(format=JsonSchemaFormat.DATETIME)
-        return obj
-
 
 class Date(Schema):
-    _type = JsonSchemaType.STRING
+    class Meta:
+        data_type = DataType.STRING
+        data_format = DataFormat.DATE
 
     def _deserialize(self, date_string):
         if not isinstance(date_string, str):
@@ -408,11 +434,6 @@ class Date(Schema):
             raise SerializationError('不是一个日期对象')
         return date.isoformat()
 
-    def to_spec(self, *args, **kwargs) -> SchemaObject:
-        obj = super().to_spec()
-        obj.extra(format=JsonSchemaFormat.DATE)
-        return obj
-
 
 class Any(Schema):
     # TODO nullable? _type? enum?
@@ -424,19 +445,18 @@ class Any(Schema):
 
 
 class Password(String):
-    def to_spec(self, *args, **kwargs) -> SchemaObject:
-        obj = super().to_spec(*args, **kwargs)
-        obj.extra(format='password')
-        return obj
+    class Meta:
+        data_format = DataFormat.PASSWORD
 
 
 class File(Schema):
-    _type = JsonSchemaType.STRING
+    class Meta:
+        data_type = DataType.STRING
 
     # noinspection PyShadowingBuiltins
-    def __init__(self, *args, format='binary', **kwargs):
+    def __init__(self, *args, data_format=DataFormat.BINARY, **kwargs):
         super().__init__(*args, **kwargs)
-        self.format = format
+        self.data_format = data_format
 
     def _deserialize(self, obj):
         from django.core.files import File as _File
@@ -449,5 +469,5 @@ class File(Schema):
 
     def to_spec(self, *args, **kwargs) -> SchemaObject:
         obj = super().to_spec(*args, **kwargs)
-        obj.extra(format=self.format)
+        obj.extra(format=self.data_format)
         return obj

@@ -2,7 +2,7 @@ import typing
 from http import HTTPStatus
 from collections import OrderedDict
 
-from openapi.enums import Location, JsonSchemaType, SecurityType
+from openapi.enums import Location, DataType, SecurityType
 from openapi.spec._register import ComponentRegistry
 from openapi.spec.utils import default_as_none
 
@@ -340,7 +340,7 @@ if __name__ == '__main__':
             get=OperationObject(
                 parameters=[
                     ParameterObject(name='arg1', location=Location.QUERY,
-                                    schema=SchemaObject(type=JsonSchemaType.INTEGER))],
+                                    schema=SchemaObject(type=DataType.INTEGER))],
                 responses=ResponsesObject({
                     200: ResponseObject(description='description1')
                 }),
