@@ -28,6 +28,7 @@ openapi = OpenAPI(title='This is example')
 openapi.add_route('/books', views.BooksAPI)
 openapi.add_route(Path('/books/{book_id}', book_id=BookSchema.id), views.BookAPI)
 openapi.add_route('/authors', views.AuthorAPI)
+openapi.add_route('/images', views.ImageAPI)
 openapi.add_route('/auth', Auth)
 
 urlpatterns = [

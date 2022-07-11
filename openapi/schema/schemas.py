@@ -5,15 +5,15 @@ from collections import defaultdict
 from collections.abc import Mapping, Iterable
 
 from openapi.enums import JsonSchemaType, JsonSchemaFormat
-from openapi.schemax.validators import Validator, Choices
-from openapi.schemax.exceptions import DeserializationError, SerializationError
+from openapi.schema.validators import Validator, Choices
+from openapi.schema.exceptions import DeserializationError, SerializationError
 from openapi.spec.schema import SchemaObject, ReferenceObject, ComponentsObject
 from openapi.utils import make_instance
 
 undefined = type('undefined', (), {'__bool__': lambda self: False})()
 
 
-class Field:
+class Schema:
     _type = None
 
     def __new__(cls, *args, **kwargs):
@@ -33,7 +33,7 @@ class Field:
             validators: typing.List[Validator] = None,  # only deserialize
             fallback: typing.Callable[[Exception], typing.Any] = None,  # only serialize
             serialize_only=False,
-            choices=None,
+            enum=None,
 
             description: str = None,  # openapi spec
             example=None  # openapi spec
@@ -52,9 +52,9 @@ class Field:
         self.example = example
 
         # enum
-        self.choices = choices
-        if choices:
-            self.validators.append(Choices(choices))
+        self.enum = enum
+        if enum:
+            self.validators.append(Choices(enum))
 
     def deserialize(self, obj):
         if obj is None:
@@ -102,28 +102,28 @@ class Field:
             example=self.example,
             description=self.description,
             read_only=self.serialize_only,
-            enum=self.choices,
+            enum=self.enum,
             nullable=self.nullable,
         )
 
 
-class _ContainerField:
+class _ContainerSchema:
     pass
 
 
-class _SchemaMeta(type):
-    _fields: typing.Dict[str, Field]
+class _ModelMeta(type):
+    _fields: typing.Dict[str, Schema]
 
     def __new__(mcs, classname, bases, attrs: dict):
         fields = {}
 
         # inherit fields
         for base in bases[::-1]:
-            if isinstance(base, _SchemaMeta):
+            if isinstance(base, _ModelMeta):
                 fields.update(base._fields)
 
         for name, field in attrs.copy().items():
-            if isinstance(field, Field):
+            if isinstance(field, Schema):
                 field.name = name
                 if field.key is None:
                     field.key = name
@@ -137,14 +137,14 @@ class _SchemaMeta(type):
         return cls
 
     def __getattr__(self, name):
-        # Schema.field      # ok
-        # Schema().field    # error
+        # Model.field      # ok
+        # Model().field    # error
         if name in self._fields:
             return self._fields[name]
         return super().__getattribute__(name)
 
 
-class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
+class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
     _anonymous = False
     _type = JsonSchemaType.OBJECT
 
@@ -152,7 +152,7 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
         super().__init__(*args, **kwargs)
         self.__required_fields = required_fields
 
-    def __is_required(self, field: Field):
+    def __is_required(self, field: Schema):
         if self.__required_fields is not None:
             return field.name in self.__required_fields
         return field.required
@@ -180,7 +180,7 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
                 data[field.attr] = field.deserialize(obj[field.key])
             except DeserializationError as exc:
                 key = field.key
-                if isinstance(field, _ContainerField):
+                if isinstance(field, _ContainerSchema):
                     errors[key] = exc.message
                 else:
                     if isinstance(exc.message, list):
@@ -206,9 +206,9 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
         return values
 
     @classmethod
-    def from_dict(cls, fields: typing.Dict[str, Field], *, name: str = None):
+    def from_dict(cls, fields: typing.Dict[str, Schema], *, name: str = None):
         # noinspection PyTypeChecker
-        schema_cls: typing.Type['Schema'] = type(name or 'AnonymousSchema', (Schema,), fields)
+        schema_cls: typing.Type['Model'] = type(name or 'AnonymousSchema', (Model,), fields)
         if name is None:
             schema_cls._anonymous = True
         return schema_cls
@@ -258,7 +258,7 @@ class Schema(Field, _ContainerField, metaclass=_SchemaMeta):
         return obj
 
 
-class String(Field):
+class String(Schema):
     _type = JsonSchemaType.STRING
 
     def __init__(self, *args, strip=False, **kwargs):
@@ -280,7 +280,7 @@ class String(Field):
         return value
 
 
-class Integer(Field):
+class Integer(Schema):
     _type = JsonSchemaType.INTEGER
 
     def _deserialize(self, value):
@@ -300,7 +300,7 @@ class Integer(Field):
         return value
 
 
-class Float(Field):
+class Float(Schema):
     _type = JsonSchemaType.NUMBER
 
     def _deserialize(self, value):
@@ -320,7 +320,7 @@ class Float(Field):
         return obj
 
 
-class Boolean(Field):
+class Boolean(Schema):
     _type = JsonSchemaType.BOOLEAN
     TRUE_VALUES = {1, '1', 'true', 'True', True}
     FALSE_VALUES = {0, '0', 'false', 'False', False}
@@ -338,11 +338,11 @@ class Boolean(Field):
         return obj
 
 
-class List(Field, _ContainerField):
+class List(Schema, _ContainerSchema):
     _type = JsonSchemaType.ARRAY
 
-    def __init__(self, field_or_cls: typing.Union[Field, typing.Type[Field]] = None, *args, **kwargs):
-        self._field: Field = make_instance(field_or_cls) or Any()
+    def __init__(self, field_or_cls: typing.Union[Schema, typing.Type[Schema]] = None, *args, **kwargs):
+        self._field: Schema = make_instance(field_or_cls) or Any()
         super().__init__(*args, **kwargs)
 
     def _deserialize(self, obj):
@@ -377,7 +377,7 @@ class List(Field, _ContainerField):
         return obj
 
 
-class Datetime(Field):
+class Datetime(Schema):
     _type = JsonSchemaType.STRING
 
     def _deserialize(self, obj):
@@ -392,7 +392,7 @@ class Datetime(Field):
         return obj
 
 
-class Date(Field):
+class Date(Schema):
     _type = JsonSchemaType.STRING
 
     def _deserialize(self, date_string):
@@ -414,10 +414,40 @@ class Date(Field):
         return obj
 
 
-class Any(Field):
+class Any(Schema):
     # TODO nullable? _type? enum?
     def _deserialize(self, obj):
         return obj
 
     def _serialize(self, obj):
+        return obj
+
+
+class Password(String):
+    def to_spec(self, *args, **kwargs) -> SchemaObject:
+        obj = super().to_spec(*args, **kwargs)
+        obj.extra(format='password')
+        return obj
+
+
+class File(Schema):
+    _type = JsonSchemaType.STRING
+
+    # noinspection PyShadowingBuiltins
+    def __init__(self, *args, format='binary', **kwargs):
+        super().__init__(*args, **kwargs)
+        self.format = format
+
+    def _deserialize(self, obj):
+        from django.core.files import File as _File
+        if not isinstance(obj, _File):
+            raise DeserializationError('不是一个文件')
+        return obj
+
+    def _serialize(self, obj):
+        return NotImplemented
+
+    def to_spec(self, *args, **kwargs) -> SchemaObject:
+        obj = super().to_spec(*args, **kwargs)
+        obj.extra(format=self.format)
         return obj

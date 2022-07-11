@@ -1,16 +1,16 @@
 from openapi.parameters import Query, Cookie, Body
 from openapi.parameters.parse import ParameterParser
-from openapi.schemax import fields
+from openapi.schema import schemas
 
 
 def test_parameter_parse():
     def handler(
             query=Query({
-                'page': fields.Integer(default=1),
-                'page_size': fields.Integer(default=100)
+                'page': schemas.Integer(default=1),
+                'page_size': schemas.Integer(default=100)
             }),
-            cookies=Cookie({'api_key': fields.String(key='apiKey')}),
-            body=Body({'username': fields.String(), 'password': fields.String()})
+            cookies=Cookie({'api_key': schemas.String(key='apiKey')}),
+            body=Body({'username': schemas.String(), 'password': schemas.String()})
     ):
         pass
 

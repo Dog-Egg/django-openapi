@@ -14,9 +14,7 @@
 - [x] 路由注册
 - [ ] 身份校验 (401)
 - [ ] 权限校验 (403)
-- [ ] Content-Type 支持
-    - [x] `application/json`
-    - [ ] `application/x-www-form-urlencoded`
+- [x] Request Body Content-Type
 
 ### Schema
 
@@ -35,7 +33,7 @@
     - [ ] Number
     - [x] Boolean
     - [ ] Email
-    - [ ] File
+    - [x] File
 - [ ] 自定义字段
 - [ ] 各类验证器
 

@@ -14,12 +14,12 @@ from openapi.http.exceptions import HttpException, NotFound, MethodNotAllowed
 from openapi.parameters import Path
 from openapi.parameters.parse import ParameterParser
 from openapi.router import join_path
-from openapi.schemax import fields
-from openapi.schemax.exceptions import DeserializationError
-from openapi.schemax.fields import Field, Schema
+from openapi.schema import schemas
+from openapi.schema.exceptions import DeserializationError
+from openapi.schema.schemas import Schema
 from openapi.spec.schema import OperationObject, ResponsesObject, InfoObject, OpenAPIObject, PathsObject, \
     PathItemObject, ParameterObject, ResponseObject, MediaTypeObject, ComponentsObject
-from openapi.typing import GeneralSchemaType
+from openapi.typing import GeneralModelSchema
 from openapi.utils import make_schema
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ class Operation:
             tags: typing.List[str] = None,
             summary: str = None,
             description: str = None,
-            response_schema: GeneralSchemaType = None,
+            response_schema: GeneralModelSchema = None,
             deprecated: bool = False,
             include_in_spec=True,
     ):
@@ -103,7 +103,7 @@ class Operation:
 
 
 class API(View):
-    __path_parameters__: typing.Dict[str, Field]
+    __path_parameters__: typing.Dict[str, Schema]
     tags: typing.List[str] = []
 
     @classmethod
@@ -130,18 +130,18 @@ class API(View):
             return JsonResponse({'message': 'Internal Server Error'}, status=500)
 
         if not isinstance(rv, HttpResponse):
-            rv = JsonResponse(rv or {}, safe=False)
+            rv = JsonResponse(rv, safe=False)
         return rv
 
     def http_method_not_allowed(self, request, *args, **kwargs):
         raise MethodNotAllowed
 
     def _deserialize_path_parameters(self, kwargs):
-        for name, field in self.__path_parameters__.items():
+        for name, schema in self.__path_parameters__.items():
             if name not in kwargs:
                 continue
             try:
-                kwargs[name] = field.deserialize(kwargs[name])
+                kwargs[name] = schema.deserialize(kwargs[name])
             except DeserializationError:
                 raise NotFound({'message': 'Not Found'})
 
@@ -204,16 +204,16 @@ class OpenAPI:
             (parameter,) = match.groups()
 
             if path_parameters and parameter in path_parameters:
-                field = path_parameters[parameter]
+                schema = path_parameters[parameter]
             else:
-                field = fields.String()
+                schema = schemas.String()
 
             path_parameters_spec.append(ParameterObject(
                 name=parameter,
                 location=Location.PATH,
                 required=True,
-                description=field.description,
-                schema=field.to_spec()
+                description=schema.description,
+                schema=schema.to_spec()
             ))
             django_path = django_path.replace(match.group(), '<%s>' % parameter)
 

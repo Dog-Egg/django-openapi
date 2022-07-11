@@ -2,20 +2,19 @@ import datetime
 
 import pytest
 
-from openapi.schemax import fields, validators
-from openapi.schemax.exceptions import DeserializationError
-from openapi.schemax.fields import Schema
+from openapi.schema import schemas, validators
+from openapi.schema.exceptions import DeserializationError
 
 
 def test_inherit():
-    """Schema 单继承"""
+    """Model 单继承"""
 
-    class Person(Schema):
-        name = fields.String()
-        birthday = fields.Date()
+    class Person(schemas.Model):
+        name = schemas.String()
+        birthday = schemas.Date()
 
     class Student(Person):
-        grade = fields.String()
+        grade = schemas.String()
 
     assert Student._fields.__len__() == 3
     assert Student().serialize({
@@ -30,30 +29,30 @@ def test_inherit():
 
 
 def test_multiple_inherit():
-    """Schema 多继承"""
+    """Model 多继承"""
 
-    class A(Schema):
-        a = fields.Integer()
-        b = fields.Integer()
+    class A(schemas.Model):
+        a = schemas.Integer()
+        b = schemas.Integer()
 
-    class B(Schema):
-        a = fields.String()
+    class B(schemas.Model):
+        a = schemas.String()
 
     class C(A, B):
-        b = fields.String()
-        c = fields.Integer()
+        b = schemas.String()
+        c = schemas.Integer()
 
     assert C._fields.__len__() == 3
     assert C().deserialize({'a': '1', 'b': '1', 'c': '1'}) == {'a': 1, 'b': '1', 'c': 1}
 
 
 def test_field_visibility():
-    """Schema 字段可见性"""
+    """Model 字段可见性"""
 
-    class SchemaA(Schema):
-        foo = fields.String()
+    class SchemaA(schemas.Model):
+        foo = schemas.String()
 
-    assert isinstance(SchemaA.foo, fields.Field)  # 类可访问
+    assert isinstance(SchemaA.foo, schemas.Schema)  # 类可访问
 
     # 实例不可访问
     with pytest.raises(AttributeError, match="""^'SchemaA' object has no attribute 'foo'$"""):
@@ -66,39 +65,39 @@ def test_field_conflict():
     目前不清楚怎么处理合适
     """
 
-    class SchemaA(Schema):
-        deserialize = fields.Integer()  # 和内置方法重名
-        _type = fields.Integer()  # 和内置属性重名
+    class SchemaA(schemas.Model):
+        deserialize = schemas.Integer()  # 和内置方法重名
+        _type = schemas.Integer()  # 和内置属性重名
 
-    assert SchemaA.deserialize == Schema.deserialize
+    assert SchemaA.deserialize == schemas.Model.deserialize
     assert SchemaA._type == 'object'
     # noinspection PyCallingNonCallable
     assert SchemaA().deserialize({'deserialize': '1', '_type': '2'}) == {'deserialize': 1, '_type': 2}
 
 
 def test_deserialize():
-    class SchemaA(Schema):
-        d = fields.Integer()
+    class SchemaA(schemas.Model):
+        d = schemas.Integer()
 
-    class SchemaB(Schema):
-        a = fields.String()
-        b = fields.Integer()
+    class SchemaB(schemas.Model):
+        a = schemas.String()
+        b = schemas.Integer()
         c = SchemaA()
 
     assert SchemaB().deserialize({'a': '1', 'b': '2', 'c': {'d': '3'}}) == {'a': '1', 'b': 2, 'c': {'d': 3}}
 
 
 def test_deserialize_error():
-    class Schema3(Schema):
-        a3 = fields.Integer()
+    class Schema3(schemas.Model):
+        a3 = schemas.Integer()
 
-    class Schema2(Schema):
-        a2 = fields.Integer()
-        b2 = fields.List(fields.Integer)
-        c2 = fields.List(Schema3())
+    class Schema2(schemas.Model):
+        a2 = schemas.Integer()
+        b2 = schemas.List(schemas.Integer)
+        c2 = schemas.List(Schema3())
 
-    class Schema1(Schema):
-        a1 = fields.Integer()
+    class Schema1(schemas.Model):
+        a1 = schemas.Integer()
         b1 = Schema2()
 
     with pytest.raises(DeserializationError):
@@ -126,13 +125,13 @@ def test_deserialize_error():
 
 
 def test_field_required():
-    class SchemaA(Schema):
-        a = fields.Integer(required=False)
+    class SchemaA(schemas.Model):
+        a = schemas.Integer(required=False)
 
     assert 'a' not in SchemaA().deserialize({})
 
-    class SchemaB(Schema):
-        a = fields.Integer(required=True)
+    class SchemaB(schemas.Model):
+        a = schemas.Integer(required=True)
 
     with pytest.raises(DeserializationError):
         try:
@@ -141,28 +140,28 @@ def test_field_required():
             assert e.message == {'a': ['这个字段是必需的']}
             raise
 
-    assert fields.Integer().required
-    assert not fields.Integer(default=1).required
+    assert schemas.Integer().required
+    assert not schemas.Integer(default=1).required
 
 
 def test_field_default():
-    class SchemaA(Schema):
-        a = fields.Integer(default=1)
+    class SchemaA(schemas.Model):
+        a = schemas.Integer(default=1)
 
     assert SchemaA().deserialize({}) == {'a': 1}
 
 
 def test_field_attr_key():
-    class SchemaA(Schema):
-        foo = fields.Integer(key='k', attr='a')
+    class SchemaA(schemas.Model):
+        foo = schemas.Integer(key='k', attr='a')
 
     assert SchemaA().deserialize({'k': '1'}) == {'a': 1}
     assert SchemaA().serialize({'a': 1}) == {'k': 1}
 
 
 def test_validate_error():
-    class Schema1(Schema):
-        a = fields.String(validators=[validators.Length(min=6), validators.Length(max=2)])
+    class Schema1(schemas.Model):
+        a = schemas.String(validators=[validators.Length(min=6), validators.Length(max=2)])
 
     with pytest.raises(DeserializationError):
         try:

@@ -8,7 +8,7 @@ def make_instance(obj):
 
 
 def make_schema(obj):
-    from openapi.schemax import Schema
+    from openapi.schema.schemas import Model
     if isinstance(obj, dict):
-        obj = Schema.from_dict(obj)
+        obj = Model.from_dict(obj)
     return make_instance(obj)

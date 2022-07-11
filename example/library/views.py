@@ -1,13 +1,12 @@
 from . import models
 from openapi.http.exceptions import NotFound
 from openapi.parameters import Query, Body
-from openapi.schemax.exceptions import DeserializationError
+from openapi.schema.exceptions import DeserializationError
 from openapi.core import API, Operation
-from openapi.schemax import fields, validators
-from openapi.schemax.fields import Schema
+from openapi.schema import schemas, validators
 
 
-class BookSchema(Schema):
+class BookSchema(schemas.Model):
     """图书"""
 
     class ValidateAuthorID(validators.Validator):
@@ -17,19 +16,19 @@ class BookSchema(Schema):
             except models.Author.DoesNotExist:
                 raise DeserializationError('ID不存在')
 
-    id = fields.Integer(description='图书ID', example=1, serialize_only=True)
-    title = fields.String(description='书名', example='三体')
-    tag = fields.String(description='标签', choices=['科幻', '喜剧', '传记'])
-    author_id = fields.Integer(description='作者ID', example=1, validators=[ValidateAuthorID()])
-    created_at = fields.Datetime(description='创建时间', serialize_only=True)
+    id = schemas.Integer(description='图书ID', example=1, serialize_only=True)
+    title = schemas.String(description='书名', example='三体')
+    tag = schemas.String(description='标签', enum=['科幻', '喜剧', '传记'])
+    author_id = schemas.Integer(description='作者ID', example=1, validators=[ValidateAuthorID()])
+    created_at = schemas.Datetime(description='创建时间', serialize_only=True)
 
 
-class AuthorSchema(Schema):
+class AuthorSchema(schemas.Model):
     """作者"""
 
-    id = fields.Integer(description='作者ID', example=1, serialize_only=True)
-    name = fields.String(description='作者姓名', example='刘慈溪', strip=True)
-    birthday = fields.Date(description='生日')
+    id = schemas.Integer(description='作者ID', example=1, serialize_only=True)
+    name = schemas.String(description='作者姓名', example='刘慈溪', strip=True)
+    birthday = schemas.Date(description='生日')
 
 
 class BooksAPI(API):
@@ -37,7 +36,7 @@ class BooksAPI(API):
 
     @Operation(
         summary='获取图书列表',
-        response_schema={'results': fields.List(BookSchema)}
+        response_schema={'results': schemas.List(BookSchema)}
     )
     def get(self, request, query=Query(dict(tag=BookSchema.tag.copy_with(required=False)))):
         return {'results': models.Book.objects.filter(**query).all()}
@@ -89,7 +88,7 @@ class AuthorAPI(API):
 
     @Operation(
         summary='作者列表',
-        response_schema={'results': fields.List(AuthorSchema)}
+        response_schema={'results': schemas.List(AuthorSchema)}
     )
     def get(self, request):
         return {'results': models.Author.objects.all()}
@@ -101,3 +100,17 @@ class AuthorAPI(API):
     def post(self, request, body=Body(AuthorSchema)):
         instance = models.Author.objects.create(**body)
         return instance
+
+
+class ImageAPI(API):
+    @Operation(
+        summary='上传图片'
+    )
+    def post(self, request, body=Body(
+        {
+            'file': schemas.File(),
+            'filename': schemas.String()
+        },
+        content_type='multipart/form-data'
+    )):
+        return {'filename': body['filename'], 'name': body['file'].name}

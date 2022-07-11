@@ -1,4 +1,4 @@
-from openapi.schemax.exceptions import DeserializationError
+from openapi.schema.exceptions import DeserializationError
 
 
 class Validator:

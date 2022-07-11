@@ -3,7 +3,7 @@ from django.contrib.auth import login, authenticate, logout
 from openapi.core import API, Operation
 from openapi.http.exceptions import BadRequest
 from openapi.parameters import Body
-from openapi.schemax import fields
+from openapi.schema import schemas
 
 
 class Auth(API):
@@ -11,9 +11,9 @@ class Auth(API):
         summary='登录',
     )
     def post(self, request, body=Body(dict(
-        username=fields.String(),
-        password=fields.String(),
-    ))):
+        username=schemas.String(description='用户名'),
+        password=schemas.Password(description='密码'),
+    ), content_type=['application/x-www-form-urlencoded', 'application/json'])):
         user = authenticate(request, **body)
         if user:
             login(request, user)
