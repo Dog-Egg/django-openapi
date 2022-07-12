@@ -5,7 +5,6 @@ import uuid
 
 import django.urls
 from django.http import JsonResponse, HttpResponse
-from django.shortcuts import render
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
@@ -20,7 +19,7 @@ from openapi.schema.schemas import Schema
 from openapi.spec.schema import OperationObject, ResponsesObject, InfoObject, OpenAPIObject, PathsObject, \
     PathItemObject, ParameterObject, ResponseObject, MediaTypeObject, ComponentsObject
 from openapi.typing import GeneralModelSchema
-from openapi.utils import make_schema
+from openapi.utils import make_schema, merge
 
 logger = logging.getLogger(__name__)
 
@@ -151,12 +150,13 @@ class API(View):
 
 
 class OpenAPI:
-    def __init__(self, *, title: str, url_prefix=None):
+    def __init__(self, *, title: str, url_prefix=None, extra_specification=None):
         self._path_items: typing.Dict[str, PathItemObject] = {}
         self._spec_id = uuid.uuid4().hex
         self._title = title
         self._urls = []
         self._url_prefix = url_prefix or '/'
+        self._extra_specification = extra_specification
 
     def add_route(self, path: typing.Union[str, Path], apicls: typing.Type[API]):
         # noinspection PyTypeChecker
@@ -229,11 +229,11 @@ class OpenAPI:
                 schemas=ComponentsObject.get_components(spec_id=self._spec_id, component_name='schemas')
             )
         ).serialize()
+
+        if self._extra_specification:
+            spec = merge(spec, self._extra_specification)
+
         try:
             return JsonResponse(spec)
         except TypeError:
             raise
-
-    @staticmethod
-    def swagger_ui(request):
-        return render(request, 'swagger-ui.html')

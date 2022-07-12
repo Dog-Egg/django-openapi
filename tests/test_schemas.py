@@ -170,6 +170,6 @@ def test_nullable(schema):
     assert schema(nullable=True).deserialize(None) is None
 
     with pytest.raises(SerializationError, match='不能为 null'):
-        schema().serialize(None)
+        schema(nullable=False).serialize(None)
     with pytest.raises(DeserializationError, match='不能为 None'):
-        schema().deserialize(None)
+        schema(nullable=False).deserialize(None)

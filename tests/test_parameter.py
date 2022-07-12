@@ -9,7 +9,7 @@ def test_parameter_parse():
                 'page': schemas.Integer(default=1),
                 'page_size': schemas.Integer(default=100)
             }),
-            cookies=Cookie({'api_key': schemas.String(key='apiKey')}),
+            cookies=Cookie({'api_key': schemas.String(alias='apiKey')}),
             body=Body({'username': schemas.String(), 'password': schemas.String()})
     ):
         pass

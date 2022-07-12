@@ -46,21 +46,21 @@ class Schema(metaclass=_SchemaMeta):
     def __init__(
             self,
             *,
-            key: str = None,
+            alias: str = None,
             attr: str = None,
             required: bool = None,  # apply to schema
             nullable: bool = False,
             default=undefined,  # only deserialize
             validators: typing.List[Validator] = None,  # only deserialize
-            fallback: typing.Callable[[Exception], typing.Any] = None,  # only serialize
+            fallback: typing.Callable[[typing.Any], typing.Any] = None,  # only serialize
             serialize_only=False,
             enum=None,
 
             description: str = None,  # openapi spec
             example=None  # openapi spec
     ):
-        self.key = key  # serialize: attr -> key
-        self.attr = attr  # deserialize: key -> attr
+        self.alias = alias  # serialize: attr -> alias
+        self.attr = attr  # deserialize: alias -> attr
         self.name = None  # field name
         self.required = required if isinstance(required, bool) else (default is undefined)
         self.nullable = nullable
@@ -100,12 +100,17 @@ class Schema(metaclass=_SchemaMeta):
         raise NotImplementedError
 
     def serialize(self, obj):
-        if obj is None:
-            if self.nullable:
-                return obj
-            else:
-                raise SerializationError('不能为 null')
-        return self._serialize(obj)
+        try:
+            if obj is None:
+                if self.nullable:
+                    return obj
+                else:
+                    raise SerializationError('不能为 null')
+            return self._serialize(obj)
+        except SerializationError:
+            if self.fallback:
+                return self.fallback(obj)
+            raise
 
     def _serialize(self, obj):
         raise NotImplementedError
@@ -150,8 +155,8 @@ class _ModelMeta(_SchemaMeta):
                     raise ValueError('Field name cannot start with %r' % '_')
 
                 field.name = name
-                if field.key is None:
-                    field.key = name
+                if field.alias is None:
+                    field.alias = name
                 if field.attr is None:
                     field.attr = name
                 fields[name] = field
@@ -190,10 +195,10 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
             if field.serialize_only:
                 continue
 
-            if field.key not in obj:
+            if field.alias not in obj:
                 # required
                 if self.__is_required(field):
-                    errors[field.key].append('这个字段是必需的')
+                    errors[field.alias].append('这个字段是必需的')
 
                 # default
                 if field.default is not undefined:
@@ -202,9 +207,9 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
                 continue
 
             try:
-                data[field.attr] = field.deserialize(obj[field.key])
+                data[field.attr] = field.deserialize(obj[field.alias])
             except DeserializationError as exc:
-                key = field.key
+                key = field.alias
                 if isinstance(field, _ContainerSchema):
                     errors[key] = exc.message
                 else:
@@ -221,13 +226,21 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
         get_value = operator.getitem if isinstance(obj, Mapping) else getattr
         values = {}
         for field in self._fields.values():
+            field: Schema
             try:
                 value = get_value(obj, field.attr)
             except (AttributeError, KeyError):
                 if self.__is_required(field):
-                    raise
-            else:
-                values[field.key] = field.serialize(value)
+                    if field.fallback:
+                        value = field.fallback(undefined)
+                        if value is undefined:
+                            continue
+                    else:
+                        raise SerializationError('%s 不存在 %r' % (obj, field.attr))
+                else:
+                    continue
+
+            values[field.alias] = field.serialize(value)
         return values
 
     @classmethod
@@ -255,9 +268,9 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
         properties = {}
         required = []
         for field in self._fields.values():
-            properties[field.key] = field.to_spec(spec_id)
+            properties[field.alias] = field.to_spec(spec_id)
             if self.__is_required(field):
-                required.append(field.key)
+                required.append(field.alias)
 
         # required 不添加到 component schemas
         obj.extra(properties=properties, required=required, description=self.__class__.__doc__)
@@ -436,7 +449,10 @@ class Date(Schema):
 
 
 class Any(Schema):
-    # TODO nullable? _type? enum?
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('nullable', True)
+        super().__init__(*args, **kwargs)
+
     def _deserialize(self, obj):
         return obj
 

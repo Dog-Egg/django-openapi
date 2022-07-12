@@ -158,9 +158,9 @@ def test_field_default():
     assert SchemaA().deserialize({}) == {'a': 1}
 
 
-def test_field_attr_key():
+def test_field_attr_alias():
     class SchemaA(schemas.Model):
-        foo = schemas.Integer(key='k', attr='a')
+        foo = schemas.Integer(alias='k', attr='a')
 
     assert SchemaA().deserialize({'k': '1'}) == {'a': 1}
     assert SchemaA().serialize({'a': 1}) == {'k': 1}

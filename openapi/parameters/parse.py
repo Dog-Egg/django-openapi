@@ -34,7 +34,7 @@ class ParameterParser:
             for field_name, field in param.schema._fields.items():
                 field: Schema
                 params.append(ParameterObject(
-                    name=field.key or field_name,
+                    name=field.alias or field_name,
                     location=param.location,
                     required=field.required,
                     description=field.description,
