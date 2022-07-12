@@ -41,13 +41,15 @@ class OpenAPIObject(_Object):
             info: 'InfoObject',
             paths: 'PathsObject',
             servers: typing.List['ServerObject'] = None,
-            components: 'ComponentsObject' = None
+            components: 'ComponentsObject' = None,
+            security: typing.List['SecurityRequirementObject'] = None,
     ):
         self.openapi = __version__
         self.info = info
         self.paths = paths
         self.servers = servers
         self.components = components
+        self.security = security
 
     def _serialize(self):
         return {
@@ -56,6 +58,7 @@ class OpenAPIObject(_Object):
             'paths': self.paths,
             'servers': self.servers,
             'components': self.components,
+            'security': self.security,
         }
 
 
@@ -296,7 +299,7 @@ class ComponentsObject(_Object, ComponentRegistry):
             *,
             schemas: typing.Dict[str, SchemaObject] = None,
             responses: typing.Dict[str, ResponseObject] = None,
-            security_schemes: typing.Dict[str, 'SecurityRequirementObject'] = None,
+            security_schemes: typing.Dict[str, 'SecuritySchemeObject'] = None,
     ):
         self.schemas = schemas
         self.responses = responses
@@ -310,7 +313,7 @@ class ComponentsObject(_Object, ComponentRegistry):
         }
 
 
-class SecurityRequirementObject(_Object):
+class SecuritySchemeObject(_Object):
     # noinspection PyShadowingBuiltins
     def __init__(self, *, type, description: str = None, name: str = None, location: str = None):
         assert type in SecurityType
@@ -329,6 +332,14 @@ class SecurityRequirementObject(_Object):
             'name': self.name,
             'in': self.location,
         }
+
+
+class SecurityRequirementObject(_Object):
+    def __init__(self, kwargs: typing.Dict[str, typing.List[str]]):
+        self.kwargs = kwargs
+
+    def _serialize(self):
+        return self.kwargs
 
 
 if __name__ == '__main__':

@@ -12,9 +12,9 @@
 
 - [x] 基础结构
 - [x] 路由注册
-- [ ] 身份校验 (401)
-- [ ] 权限校验 (403)
 - [x] Request Body Content-Type
+- [ ] 表述 authentication specification (401, 403)
+- [ ] 代理处理
 
 ### Schema
 
