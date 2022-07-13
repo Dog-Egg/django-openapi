@@ -20,6 +20,7 @@ from openapi.spec.schema import OperationObject, ResponsesObject, InfoObject, Op
     PathItemObject, ParameterObject, ResponseObject, MediaTypeObject, ComponentsObject
 from openapi.typing import GeneralModelSchema
 from openapi.utils import make_schema, merge
+from openapi.ui import swagger_ui
 
 logger = logging.getLogger(__name__)
 
@@ -150,13 +151,27 @@ class API(View):
 
 
 class OpenAPI:
-    def __init__(self, *, title: str, url_prefix=None, extra_specification=None):
+    def __init__(
+            self,
+            *,
+            title: str,
+            url_prefix=None,
+            extra_specification=None,
+            enable_swagger_ui=False,
+    ):
         self._path_items: typing.Dict[str, PathItemObject] = {}
         self._spec_id = uuid.uuid4().hex
         self._title = title
         self._urls = []
         self._url_prefix = url_prefix or '/'
         self._extra_specification = extra_specification
+
+        if enable_swagger_ui:
+            self._register_django_url(self._join_path('api-spec'), self.api_spec, name=self._spec_id)
+            self._register_django_url(self._join_path('swagger-ui'), swagger_ui(self._spec_id, title=self._title))
+
+    def _register_django_url(self, *args, **kwargs):
+        self._urls.append(django.urls.path(*args, **kwargs))
 
     def add_route(self, path: typing.Union[str, Path], apicls: typing.Type[API]):
         # noinspection PyTypeChecker
@@ -172,7 +187,7 @@ class OpenAPI:
             operations[method] = operation.to_spec(self._spec_id, apicls=apicls, path_parameters=path_parameters_spec)
 
         self._path_items[openapi_path] = PathItemObject(**operations)
-        self._urls.append(django.urls.path(django_path, apicls.as_view()))
+        self._register_django_url(django_path, apicls.as_view())
 
     @property
     def urls(self):
@@ -190,13 +205,16 @@ class OpenAPI:
 
         return operation_dict
 
+    def _join_path(self, path):
+        return join_path(self._url_prefix, path)
+
     def _parse_path(self, path):
         if isinstance(path, Path):
             path_parameters = path.path_parameters
         else:
             path_parameters = None
 
-        openapi_path = django_path = join_path(self._url_prefix, path)
+        openapi_path = django_path = self._join_path(path)
 
         path_parameters_spec = []
         pattern = re.compile(r"{(?P<parameter>[^>]+)}")
@@ -221,7 +239,7 @@ class OpenAPI:
             openapi_path = '/' + openapi_path
         return django_path, openapi_path, path_parameters_spec
 
-    def api_spec(self, _):
+    def api_spec(self, request):
         spec = OpenAPIObject(
             info=InfoObject(title=self._title),
             paths=PathsObject(self._path_items),
