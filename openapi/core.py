@@ -70,12 +70,9 @@ class Operation:
             rv = self.response_schema.serialize(rv)
         return rv
 
-    def to_spec(self, spec_id, *, path_parameters, apicls: typing.Type['API']) -> typing.Optional[OperationObject]:
+    def to_spec(self, spec_id, *, path_parameters) -> typing.Optional[OperationObject]:
         if not self.include_in_spec:
             return
-
-        tags = self.tags.copy()
-        tags.extend(apicls.tags)
 
         parameters = self.parser.get_spec_parameters()
         parameters.extend(path_parameters)
@@ -83,7 +80,7 @@ class Operation:
         return OperationObject(
             summary=self.summary,
             parameters=parameters,
-            tags=tags,
+            tags=self.tags,
             deprecated=self.deprecated,
             request_body=self.parser.get_spec_request_body(spec_id),
             responses=ResponsesObject(
@@ -105,7 +102,6 @@ class Operation:
 
 class API(View):
     __path_parameters__: typing.Dict[str, Schema]
-    tags: typing.List[str] = []
 
     @classmethod
     def as_view(cls, **initkwargs):
@@ -185,7 +181,7 @@ class OpenAPI:
         operations = {}
         for method, operation in self._parse_apicls(apicls).items():
             operation: Operation
-            operations[method] = operation.to_spec(self._spec_id, apicls=apicls, path_parameters=path_parameters_spec)
+            operations[method] = operation.to_spec(self._spec_id, path_parameters=path_parameters_spec)
 
         self._path_items[openapi_path] = PathItemObject(**operations)
         self._register_django_url(django_path, apicls.as_view())

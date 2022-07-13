@@ -32,8 +32,6 @@ class AuthorSchema(schemas.Model):
 
 
 class BooksAPI(API):
-    tags = ['图书馆']
-
     @Operation(
         summary='获取图书列表',
         response_schema={'results': schemas.List(BookSchema)}
@@ -50,8 +48,6 @@ class BooksAPI(API):
 
 
 class BookAPI(API):
-    tags = ['图书馆']
-
     @staticmethod
     def _get_book(pk):
         try:
@@ -84,8 +80,6 @@ class BookAPI(API):
 
 
 class AuthorAPI(API):
-    tags = ['图书馆']
-
     @Operation(
         summary='作者列表',
         response_schema={'results': schemas.List(AuthorSchema)}
