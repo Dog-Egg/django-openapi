@@ -26,16 +26,19 @@
     - [x] String
     - [x] Integer
     - [x] Float
+    - [ ] Decimal
     - [ ] Datetime
     - [ ] Time
     - [ ] Date
     - [ ] Url
-    - [ ] Number
     - [x] Boolean
     - [ ] Email
     - [x] File
 - [ ] 自定义字段
 - [ ] 各类验证器
+    - [x] [Numeric Instances](https://json-schema.org/draft/2020-12/json-schema-validation.html#name-validation-keywords-for-num)
+    - [x] [Strings](https://json-schema.org/draft/2020-12/json-schema-validation.html#name-validation-keywords-for-str)
+    - [ ] [Arrays](https://json-schema.org/draft/2020-12/json-schema-validation.html#name-validation-keywords-for-arr)
 
 ### Specification
 

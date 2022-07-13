@@ -5,6 +5,7 @@ import pytest
 from openapi.schema import schemas
 from openapi.schema.exceptions import SerializationError, DeserializationError
 from openapi.schema.schemas import Schema
+from openapi.schema.validators import Range
 from openapi.utils import make_instance
 
 
@@ -173,3 +174,28 @@ def test_nullable(schema):
         schema(nullable=False).serialize(None)
     with pytest.raises(DeserializationError, match='不能为 None'):
         schema(nullable=False).deserialize(None)
+
+
+def test_number_range():
+    assert schemas.Integer(gte=1).deserialize('1') == 1
+
+    with pytest.raises(DeserializationError, match='^The value must be greater than 1$'):
+        schemas.Integer(gt=1).deserialize(1)
+
+    with pytest.raises(DeserializationError,
+                       match="['The value must be less than 1', 'The value must be greater than 1']"):
+        schemas.Integer(gt=1, validators=[Range(lt=1)]).deserialize(1)
+
+
+def test_number_multiple():
+    assert schemas.Integer(multiple_of=3).deserialize('9') == 9
+
+    with pytest.raises(DeserializationError, match='^The value must be a multiple of 4$'):
+        schemas.Integer(multiple_of=4).deserialize(9)
+
+    # multiple_of=0.01 可用于如"价格"的表示
+    assert schemas.Float(multiple_of=0.01, gte=0).deserialize(1.01) == 1.01
+    assert schemas.Float(multiple_of=0.01).deserialize(1) == 1
+
+    with pytest.raises(DeserializationError, match='^The value must be a multiple of 0.01$'):
+        schemas.Float(multiple_of=0.01).deserialize(1.002)

@@ -118,7 +118,7 @@ def test_deserialize_error():
                 }
             })
         except DeserializationError as e:
-            assert e.message == {
+            assert e.error == {
                 'a1': ['不是一个整数'],
                 'b1': {
                     'a2': ['不是一个整数'],
@@ -144,7 +144,7 @@ def test_field_required():
         try:
             SchemaB().deserialize({})
         except DeserializationError as e:
-            assert e.message == {'a': ['这个字段是必需的']}
+            assert e.error == {'a': ['这个字段是必需的']}
             raise
 
     assert schemas.Integer().required
@@ -174,5 +174,5 @@ def test_validate_error():
         try:
             Schema1().deserialize({'a': '123'})
         except DeserializationError as e:
-            assert e.message == {'a': ['长度最小为 6', '长度最大为 2']}
+            assert e.error == {'a': ['长度最小为 6', '长度最大为 2']}
             raise

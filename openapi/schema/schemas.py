@@ -6,7 +6,7 @@ from collections import defaultdict
 from collections.abc import Mapping, Iterable
 
 from openapi.enums import DataType, DataFormat
-from openapi.schema.validators import Validator, Choices
+from openapi.schema.validators import Validator, Choices, Range, MultipleOf, Length, RegExp
 from openapi.schema.exceptions import DeserializationError, SerializationError
 from openapi.spec.schema import SchemaObject, ReferenceObject, ComponentsObject
 from openapi.utils import make_instance
@@ -90,7 +90,7 @@ class Schema(metaclass=_SchemaMeta):
             try:
                 validator.validate(obj)
             except DeserializationError as exc:
-                errors.append(exc.message)
+                errors.append(exc.error)
 
         if errors:
             raise DeserializationError(errors)
@@ -211,12 +211,12 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
             except DeserializationError as exc:
                 key = field.alias
                 if isinstance(field, _ContainerSchema):
-                    errors[key] = exc.message
+                    errors[key] = exc.error
                 else:
-                    if isinstance(exc.message, list):
-                        errors[key].extend(exc.message)
+                    if isinstance(exc.error, list):
+                        errors[key].extend(exc.error)
                     else:
-                        errors[key].append(exc.message)
+                        errors[key].append(exc.error)
 
         if errors:
             raise DeserializationError(dict(errors))
@@ -264,7 +264,7 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
     #     return cls.from_dict(fields, name=name)
 
     def to_spec(self, spec_id) -> typing.Union[SchemaObject, ReferenceObject]:
-        obj = super().to_spec()
+        spec = super().to_spec()
         properties = {}
         required = []
         for field in self._fields.values():
@@ -273,7 +273,7 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
                 required.append(field.alias)
 
         # required 不添加到 component schemas
-        obj.extra(properties=properties, required=required, description=self.__class__.__doc__)
+        spec.extra(properties=properties, required=required, description=self.__class__.__doc__)
 
         if not self._anonymous:
             # 非匿名 Schema 使用 openapi components 进行复用
@@ -281,10 +281,10 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
 
             # 注册的 Schema 不直接添加 required
             # 清除 required
-            obj.extra(required=[])
+            spec.extra(required=[])
 
             # 注册到 openapi components
-            ComponentsObject.register(spec_id=spec_id, component_name='schemas', key=schema_name, value=obj)
+            ComponentsObject.register(spec_id=spec_id, component_name='schemas', key=schema_name, value=spec)
 
             # 返回 Schema 引用
             ref = ReferenceObject(ref='#/components/schemas/%s' % schema_name)
@@ -293,16 +293,27 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
                 return SchemaObject(allOf=[ref, {'required': required}])
             return ref
 
-        return obj
+        return spec
 
 
 class String(Schema):
     class Meta:
         data_type = DataType.STRING
 
-    def __init__(self, *args, strip=False, **kwargs):
+    def __init__(self, *args, strip=False, min_length=None, max_length=None, pattern=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.strip = strip  # only deserialize
+
+        self.min_length = min_length
+        self.max_length = max_length
+        if min_length is not None or max_length is not None:
+            self.validators.append(Length(min=min_length, max=max_length))
+
+        self.pattern = pattern
+        if pattern:
+            regexp = RegExp(pattern)
+            self.pattern = regexp.pattern.pattern
+            self.validators.append(regexp)
 
     def _deserialize(self, value):
         if not isinstance(value, str):
@@ -318,8 +329,50 @@ class String(Schema):
 
         return value
 
+    def to_spec(self, *args, **kwargs) -> SchemaObject:
+        spec = super().to_spec(*args, **kwargs)
+        spec.extra(
+            maxLength=self.max_length,
+            minLength=self.min_length,
+            pattern=self.pattern,
+        )
+        return spec
 
-class Integer(Schema):
+
+class _Number(Schema):
+    def __init__(self, *args, gt=None, gte=None, lt=None, lte=None, multiple_of=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.gt = gt
+        self.gte = gte
+        self.lt = lt
+        self.lte = lte
+        if any(x is not None for x in (gt, gte, lt, lte)):
+            self.validators.append(Range(gt=gt, gte=gte, lt=lt, lte=lte))
+
+        self.multiple_of = multiple_of
+        if multiple_of is not None:
+            self.validators.append(MultipleOf(self.multiple_of))
+
+    def _deserialize(self, obj):
+        raise NotImplementedError
+
+    def _serialize(self, obj):
+        raise NotImplementedError
+
+    def to_spec(self, *args, **kwargs) -> SchemaObject:
+        spec = super().to_spec(*args, **kwargs)
+        spec.extra(
+            maximum=self.lte if self.lt is None else self.lt,
+            exclusiveMaximum=self.lt is not None or None,
+            minimum=self.gte if self.gt is None else self.gt,
+            exclusiveMinimum=self.gt is not None or None,
+            multipleOf=self.multiple_of,
+        )
+        return spec
+
+
+class Integer(_Number):
     class Meta:
         data_type = DataType.INTEGER
 
@@ -340,7 +393,7 @@ class Integer(Schema):
         return value
 
 
-class Float(Schema):
+class Float(_Number):
     class Meta:
         data_type = DataType.NUMBER
         data_format = DataFormat.FLOAT
@@ -396,7 +449,7 @@ class List(Schema, _ContainerSchema):
             try:
                 rv.append(self._field.deserialize(item))
             except DeserializationError as exc:
-                errors[index].append(exc.message)
+                errors[index].append(exc.error)
 
         if errors:
             raise DeserializationError(dict(errors))
@@ -412,9 +465,9 @@ class List(Schema, _ContainerSchema):
         return rv
 
     def to_spec(self, spec_id) -> SchemaObject:
-        obj = super().to_spec()
-        obj.extra(items=self._field.to_spec(spec_id))
-        return obj
+        spec = super().to_spec()
+        spec.extra(items=self._field.to_spec(spec_id))
+        return spec
 
 
 class Datetime(Schema):
@@ -484,6 +537,6 @@ class File(Schema):
         return NotImplemented
 
     def to_spec(self, *args, **kwargs) -> SchemaObject:
-        obj = super().to_spec(*args, **kwargs)
-        obj.extra(format=self.data_format)
-        return obj
+        spec = super().to_spec(*args, **kwargs)
+        spec.extra(format=self.data_format)
+        return spec

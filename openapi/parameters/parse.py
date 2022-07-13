@@ -55,5 +55,5 @@ class ParameterParser:
             try:
                 rv[name] = param.parse_request(request)
             except DeserializationError as exc:
-                raise BadRequest(exc.message)
+                raise BadRequest(exc.error)
         return rv

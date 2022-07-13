@@ -4,6 +4,7 @@ import typing
 import uuid
 
 import django.urls
+from django.conf import settings
 from django.http import JsonResponse, HttpResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -251,7 +252,8 @@ class OpenAPI:
         if self._extra_specification:
             spec = merge(spec, self._extra_specification)
 
+        json_dumps_params = dict(indent=2, ensure_ascii=False) if settings.DEBUG else {}
         try:
-            return JsonResponse(spec)
+            return JsonResponse(spec, json_dumps_params=json_dumps_params)
         except TypeError:
             raise
