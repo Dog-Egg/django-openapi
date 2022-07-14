@@ -5,23 +5,22 @@ import uuid
 
 import django.urls
 from django.conf import settings
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, HttpRequest
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from openapi.enums import Location
-from openapi.http.exceptions import HttpException, NotFound, MethodNotAllowed
+from openapi.http.exceptions import HttpException, NotFound, MethodNotAllowed, Unauthorized, Forbidden
 from openapi.parameters import Path
 from openapi.parameters.parse import ParameterParser
+from openapi.permissions import PermissionABC
 from openapi.router import join_path
 from openapi.schema import schemas
 from openapi.schema.exceptions import DeserializationError
 from openapi.schema.schemas import Schema
-from openapi.spec.schema import OperationObject, ResponsesObject, InfoObject, OpenAPIObject, PathsObject, \
-    PathItemObject, ParameterObject, ResponseObject, MediaTypeObject, ComponentsObject
 from openapi.typing import GeneralModelSchema
-from openapi.utils import make_schema, merge
+from openapi.utils import make_schema, merge, make_instance
 from openapi.ui import swagger_ui
+from openapi import spec as _spec
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +37,7 @@ class Operation:
             response_schema: GeneralModelSchema = None,
             deprecated: bool = False,
             include_in_spec=True,
+            permission=None
     ):
         self.tags = tags or []
         self.summary = summary
@@ -46,6 +46,8 @@ class Operation:
         self.response_schema: Schema = response_schema and make_schema(response_schema)
         self.deprecated = deprecated
         self.include_in_spec = include_in_spec
+
+        self.permission: PermissionABC = make_instance(permission)
 
         self.parser: ParameterParser = ...
 
@@ -61,43 +63,56 @@ class Operation:
         setattr(handler, self._HANDLER_OPERATION_KEY, self)
         return handler
 
+    def _check_permission(self, request: HttpRequest):
+        if not self.permission:
+            return
+        if not self.permission.has_permission(request):
+            if request.user and request.user.is_authenticated:
+                raise Forbidden
+            raise Unauthorized
+
     def wrap_invoke(self, handler, request, *args, **kwargs):
         kwargs.update(self.parser.parse_request(request))
 
+        # permission
+        self._check_permission(request)
+
         rv = handler(request, *args, **kwargs)
+        if isinstance(rv, HttpResponse):
+            return rv
 
-        if self.response_schema and not isinstance(rv, HttpResponse):
+        if self.response_schema:
             rv = self.response_schema.serialize(rv)
-        return rv
+        return JsonResponse(rv, safe=False)
 
-    def to_spec(self, spec_id, *, path_parameters) -> typing.Optional[OperationObject]:
+    def to_spec(self, spec_id, *, path_parameters):
         if not self.include_in_spec:
             return
 
         parameters = self.parser.get_spec_parameters()
         parameters.extend(path_parameters)
 
-        return OperationObject(
-            summary=self.summary,
-            parameters=parameters,
-            tags=self.tags,
-            deprecated=self.deprecated,
-            request_body=self.parser.get_spec_request_body(spec_id),
-            responses=ResponsesObject(
-                responses={
-                    200: ResponseObject(
-                        description='successful',
-                        content={
-                            'application/json': MediaTypeObject(
-                                schema=self.response_schema and self.response_schema.to_spec(spec_id)
-                            )
+        return {
+            'summary': self.summary,
+            'parameters': parameters,
+            'tags': self.tags,
+            'deprecated': self.deprecated,
+            'requestBody': self.parser.get_spec_request_body(spec_id),
+            'responses': {
+                200: {
+                    'description': 'successful',
+                    'content': {
+                        'application/json': {
+                            'schema': self.response_schema and self.response_schema.to_spec(spec_id)
                         }
-                    ),
-                    500: ResponseObject(
-                        description='error'
-                    )
-                })
-        )
+                    }
+                },
+                500: {
+                    'description': 'error'
+                }
+            },
+            'security': self.permission and [{'Login': _spec.protect([])}],
+        }
 
 
 class API(View):
@@ -126,8 +141,6 @@ class API(View):
             logger.exception('django-openapi')
             return JsonResponse({'message': 'Internal Server Error'}, status=500)
 
-        if not isinstance(rv, HttpResponse):
-            rv = JsonResponse(rv, safe=False)
         return rv
 
     def http_method_not_allowed(self, request, *args, **kwargs):
@@ -156,7 +169,7 @@ class OpenAPI:
             extra_specification=None,
             enable_swagger_ui=False,
     ):
-        self._path_items: typing.Dict[str, PathItemObject] = {}
+        self._path_items = {}
         self._spec_id = uuid.uuid4().hex
         self._title = title
         self._urls = []
@@ -183,7 +196,7 @@ class OpenAPI:
             operation: Operation
             operations[method] = operation.to_spec(self._spec_id, path_parameters=path_parameters_spec)
 
-        self._path_items[openapi_path] = PathItemObject(**operations)
+        self._path_items[openapi_path] = operations
         self._register_django_url(django_path, apicls.as_view())
 
     @property
@@ -223,13 +236,13 @@ class OpenAPI:
             else:
                 schema = schemas.String()
 
-            path_parameters_spec.append(ParameterObject(
-                name=parameter,
-                location=Location.PATH,
-                required=True,
-                description=schema.description,
-                schema=schema.to_spec()
-            ))
+            path_parameters_spec.append({
+                'name': parameter,
+                'in': 'path',
+                'required': True,
+                'description': schema.description,
+                'schema': schema.to_spec()
+            })
             django_path = django_path.replace(match.group(), '<%s>' % parameter)
 
         if not openapi_path.startswith('/'):
@@ -237,13 +250,23 @@ class OpenAPI:
         return django_path, openapi_path, path_parameters_spec
 
     def api_spec(self, request):
-        spec = OpenAPIObject(
-            info=InfoObject(title=self._title),
-            paths=PathsObject(self._path_items),
-            components=ComponentsObject(
-                schemas=ComponentsObject.get_components(spec_id=self._spec_id, component_name='schemas')
-            )
-        ).serialize()
+        spec = _spec.clean({
+            'openapi': '3.0.3',
+            'info': {
+                'title': self._title,
+                'version': '0.1.0'
+            },
+            'paths': self._path_items,
+            'components': {
+                'schemas': _spec.components.get_components(spec_id=self._spec_id, namespace='schemas'),
+                'securitySchemes': {
+                    'Login': {
+                        'type': 'http',
+                        'scheme': 'basic',
+                    }
+                }
+            }
+        })
 
         if self._extra_specification:
             spec = merge(spec, self._extra_specification)

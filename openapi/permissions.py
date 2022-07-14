@@ -1,5 +1,3 @@
-# TODO 在 specification 中表述 authentication
-
 from django.http import HttpRequest
 
 

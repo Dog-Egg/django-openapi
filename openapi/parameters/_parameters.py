@@ -5,10 +5,8 @@ from collections import UserString, ChainMap
 
 from django.http import HttpRequest
 
-from openapi.enums import Location
 from openapi.http.exceptions import BadRequest
 from openapi.schema.schemas import Model, Schema
-from openapi.spec.schema import RequestBodyObject, MediaTypeObject
 from openapi.typing import GeneralModelSchema, GeneralSchema
 from openapi.utils import make_schema
 
@@ -27,21 +25,21 @@ class _Parameters(_Parser, ABC):
 
 
 class Query(_Parameters):
-    location = Location.QUERY
+    location = 'query'
 
     def parse_request(self, request):
         return self.schema.deserialize(request.GET)
 
 
 class Cookie(_Parameters):
-    location = Location.COOKIE
+    location = 'cookie'
 
     def parse_request(self, request):
         return self.schema.deserialize(request.COOKIES)
 
 
 class Header(_Parameters):
-    location = Location.HEADER
+    location = 'header'
 
     def parse_request(self, request: HttpRequest):
         return self.schema.deserialize(request.headers)
@@ -66,13 +64,13 @@ class Body(_Parser):
         return self.schema.deserialize(args)
 
     def to_spec(self, spec_id):
-        media_type = MediaTypeObject(
+        media_type = dict(
             schema=self.schema.to_spec(spec_id),
         )
 
         content = {x: media_type for x in self.content_type_list}
 
-        return RequestBodyObject(
+        return dict(
             content=content,
             required=True
         )

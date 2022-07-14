@@ -9,6 +9,14 @@ class BadRequest(HttpException):
     status = 400
 
 
+class Unauthorized(HttpException):
+    status = 401
+
+
+class Forbidden(HttpException):
+    status = 403
+
+
 class NotFound(HttpException):
     status = 404
 

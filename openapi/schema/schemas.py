@@ -5,16 +5,15 @@ import typing
 from collections import defaultdict
 from collections.abc import Mapping, Iterable
 
-from openapi.enums import DataType, DataFormat
 from openapi.schema.validators import Validator, Choices, Range, MultipleOf, Length, RegExp
 from openapi.schema.exceptions import DeserializationError, SerializationError
-from openapi.spec.schema import SchemaObject, ReferenceObject, ComponentsObject
+from openapi import spec as _spec
 from openapi.utils import make_instance
 
 undefined = type('undefined', (), {'__bool__': lambda self: False})()
 
 _DEFAULT_METADATA = dict(
-    data_type=DataType.STRING,
+    data_type='string',
     data_format=None,
 )
 
@@ -121,13 +120,13 @@ class Schema(metaclass=_SchemaMeta):
         _kwargs.update(**kwargs)
         return self.__class__(*_args, **_kwargs)
 
-    def to_spec(self, *args, **kwargs) -> SchemaObject:
-        return SchemaObject(
+    def to_spec(self, *args, **kwargs) -> dict:
+        return dict(
             type=self._metadata['data_type'],
             default=self.default or None,
             example=self.example,
             description=self.description,
-            read_only=self.serialize_only,
+            readOnly=self.serialize_only,
             enum=self.enum,
             nullable=self.nullable,
             format=self._metadata['data_format']
@@ -176,7 +175,7 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
     _anonymous = False
 
     class Meta:
-        data_type = DataType.OBJECT
+        data_type = 'object'
 
     def __init__(self, *args, required_fields=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -263,7 +262,7 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
     #             fields[field.name] = field
     #     return cls.from_dict(fields, name=name)
 
-    def to_spec(self, spec_id) -> typing.Union[SchemaObject, ReferenceObject]:
+    def to_spec(self, spec_id):
         spec = super().to_spec()
         properties = {}
         required = []
@@ -273,7 +272,7 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
                 required.append(field.alias)
 
         # required 不添加到 component schemas
-        spec.extra(properties=properties, required=required, description=self.__class__.__doc__)
+        spec.update(properties=properties, required=required, description=self.__class__.__doc__)
 
         if not self._anonymous:
             # 非匿名 Schema 使用 openapi components 进行复用
@@ -281,16 +280,16 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
 
             # 注册的 Schema 不直接添加 required
             # 清除 required
-            spec.extra(required=[])
+            spec.update(required=[])
 
             # 注册到 openapi components
-            ComponentsObject.register(spec_id=spec_id, component_name='schemas', key=schema_name, value=spec)
+            _spec.components.register(spec_id=spec_id, component_name='schemas', key=schema_name, value=spec)
 
             # 返回 Schema 引用
-            ref = ReferenceObject(ref='#/components/schemas/%s' % schema_name)
+            ref = {'$ref': '#/components/schemas/%s' % schema_name}
             if required:
                 # required 利用 allOf 组合
-                return SchemaObject(allOf=[ref, {'required': required}])
+                return dict(allOf=[ref, {'required': required}])
             return ref
 
         return spec
@@ -298,7 +297,7 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
 
 class String(Schema):
     class Meta:
-        data_type = DataType.STRING
+        data_type = 'string'
 
     def __init__(self, *args, strip=False, min_length=None, max_length=None, pattern=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -329,9 +328,9 @@ class String(Schema):
 
         return value
 
-    def to_spec(self, *args, **kwargs) -> SchemaObject:
+    def to_spec(self, *args, **kwargs):
         spec = super().to_spec(*args, **kwargs)
-        spec.extra(
+        spec.update(
             maxLength=self.max_length,
             minLength=self.min_length,
             pattern=self.pattern,
@@ -360,9 +359,9 @@ class _Number(Schema):
     def _serialize(self, obj):
         raise NotImplementedError
 
-    def to_spec(self, *args, **kwargs) -> SchemaObject:
+    def to_spec(self, *args, **kwargs):
         spec = super().to_spec(*args, **kwargs)
-        spec.extra(
+        spec.update(
             maximum=self.lte if self.lt is None else self.lt,
             exclusiveMaximum=self.lt is not None or None,
             minimum=self.gte if self.gt is None else self.gt,
@@ -374,7 +373,7 @@ class _Number(Schema):
 
 class Integer(_Number):
     class Meta:
-        data_type = DataType.INTEGER
+        data_type = 'integer'
 
     def _deserialize(self, value):
         try:
@@ -395,8 +394,8 @@ class Integer(_Number):
 
 class Float(_Number):
     class Meta:
-        data_type = DataType.NUMBER
-        data_format = DataFormat.FLOAT
+        data_type = 'number'
+        data_format = 'float'
 
     def _deserialize(self, value):
         try:
@@ -415,7 +414,7 @@ class Boolean(Schema):
     FALSE_VALUES = {0, '0', 'false', 'False', False}
 
     class Meta:
-        data_type = DataType.BOOLEAN
+        data_type = 'boolean'
 
     def _deserialize(self, obj):
         if obj in self.TRUE_VALUES:
@@ -432,7 +431,7 @@ class Boolean(Schema):
 
 class List(Schema, _ContainerSchema):
     class Meta:
-        data_type = DataType.ARRAY
+        data_type = 'array'
 
     def __init__(self, field_or_cls: typing.Union[Schema, typing.Type[Schema]] = None, *args, **kwargs):
         self._field: Schema = make_instance(field_or_cls) or Any()
@@ -464,16 +463,16 @@ class List(Schema, _ContainerSchema):
             rv.append(self._field.serialize(item))
         return rv
 
-    def to_spec(self, spec_id) -> SchemaObject:
+    def to_spec(self, spec_id):
         spec = super().to_spec()
-        spec.extra(items=self._field.to_spec(spec_id))
+        spec.update(items=self._field.to_spec(spec_id))
         return spec
 
 
 class Datetime(Schema):
     class Meta:
-        data_type = DataType.STRING
-        data_format = DataFormat.DATETIME
+        data_type = 'string'
+        data_format = 'date-time'
 
     def _deserialize(self, obj):
         pass
@@ -484,8 +483,8 @@ class Datetime(Schema):
 
 class Date(Schema):
     class Meta:
-        data_type = DataType.STRING
-        data_format = DataFormat.DATE
+        data_type = 'string'
+        data_format = 'date'
 
     def _deserialize(self, date_string):
         if not isinstance(date_string, str):
@@ -515,15 +514,15 @@ class Any(Schema):
 
 class Password(String):
     class Meta:
-        data_format = DataFormat.PASSWORD
+        data_format = 'password'
 
 
 class File(Schema):
     class Meta:
-        data_type = DataType.STRING
+        data_type = 'string'
 
     # noinspection PyShadowingBuiltins
-    def __init__(self, *args, data_format=DataFormat.BINARY, **kwargs):
+    def __init__(self, *args, data_format='binary', **kwargs):
         super().__init__(*args, **kwargs)
         self.data_format = data_format
 
@@ -536,7 +535,7 @@ class File(Schema):
     def _serialize(self, obj):
         return NotImplemented
 
-    def to_spec(self, *args, **kwargs) -> SchemaObject:
+    def to_spec(self, *args, **kwargs):
         spec = super().to_spec(*args, **kwargs)
-        spec.extra(format=self.data_format)
+        spec.update(format=self.data_format)
         return spec

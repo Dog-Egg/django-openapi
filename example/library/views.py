@@ -4,6 +4,7 @@ from openapi.parameters import Query, Body
 from openapi.schema.exceptions import DeserializationError
 from openapi.core import API, Operation
 from openapi.schema import schemas, validators
+from openapi.permissions import IsAuthenticated
 
 
 class BookSchema(schemas.Model):
@@ -42,6 +43,7 @@ class BooksAPI(API):
     @Operation(
         summary='创建图书',
         response_schema=BookSchema,
+        permission=IsAuthenticated
     )
     def post(self, request, body=Body(BookSchema)):
         return models.Book.objects.create(**body)

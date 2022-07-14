@@ -1,3 +1,4 @@
+from openapi import spec
 from openapi.parameters import Query, Cookie, Body
 from openapi.parameters.parse import ParameterParser
 from openapi.schema import schemas
@@ -16,14 +17,14 @@ def test_parameter_parse():
 
     parser = ParameterParser(handler)
 
-    assert [p.serialize() for p in parser.get_spec_parameters()] == (
+    assert spec.clean(parser.get_spec_parameters()) == (
         [
             {'in': 'query', 'name': 'page', 'schema': {'type': 'integer', 'default': 1}},
             {'in': 'query', 'name': 'page_size', 'schema': {'type': 'integer', 'default': 100}},
             {'in': 'cookie', 'name': 'apiKey', 'required': True, 'schema': {'type': 'string'}}
         ])
 
-    assert parser.get_spec_request_body().serialize() == (
+    assert spec.clean(parser.get_spec_request_body()) == (
         {
             'content': {
                 'application/json': {

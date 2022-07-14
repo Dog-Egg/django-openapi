@@ -5,7 +5,7 @@ import typing
 from django.http import HttpRequest
 
 from ._parameters import _Parameters, Body
-from openapi.spec.schema import ParameterObject
+from .. import spec
 from ..http.exceptions import BadRequest
 from ..schema.exceptions import DeserializationError
 from ..schema.schemas import Schema
@@ -28,18 +28,18 @@ class ParameterParser:
                 self._body[name] = param
 
     def get_spec_parameters(self):
-        params: typing.List[ParameterObject] = []
+        params = []
         for param_name, param in self._parameters.items():
             # noinspection PyProtectedMember
             for field_name, field in param.schema._fields.items():
                 field: Schema
-                params.append(ParameterObject(
-                    name=field.alias or field_name,
-                    location=param.location,
-                    required=field.required,
-                    description=field.description,
-                    schema=field.to_spec()
-                ))
+                params.append({
+                    'name': field.alias or field_name,
+                    'in': param.location,
+                    'required': spec.default_as_none(field.required, False),
+                    'description': field.description,
+                    'schema': field.to_spec()
+                })
         return params
 
     def get_spec_request_body(self, spec_id=None):
