@@ -1,3 +1,5 @@
+from django.contrib.auth.models import User
+
 from . import models
 from openapi.http.exceptions import NotFound
 from openapi.parameters import Query, Body
@@ -111,3 +113,18 @@ class ImageAPI(API):
         content_type='multipart/form-data'
     )):
         return {'filename': body['filename'], 'name': body['file'].name}
+
+
+class UserSchema(schemas.Model):
+    id = schemas.Integer(serialize_only=True)
+    username = schemas.String()
+    password = schemas.String(deserialize_only=True)
+
+
+class UsersAPI(API):
+    @Operation(
+        response_schema=schemas.List(UserSchema),
+        tags=['用户']
+    )
+    def get(self, request):
+        return User.objects.all()

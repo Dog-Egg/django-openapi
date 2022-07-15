@@ -53,6 +53,7 @@ class Schema(metaclass=_SchemaMeta):
             validators: typing.List[Validator] = None,  # only deserialize
             fallback: typing.Callable[[typing.Any], typing.Any] = None,  # only serialize
             serialize_only=False,
+            deserialize_only=False,
             enum=None,
 
             description: str = None,  # openapi spec
@@ -67,6 +68,7 @@ class Schema(metaclass=_SchemaMeta):
         self.validators = validators or []
         self.fallback = fallback
         self.serialize_only = serialize_only
+        self.deserialize_only = deserialize_only
 
         self.description = description
         self.example = example
@@ -127,6 +129,7 @@ class Schema(metaclass=_SchemaMeta):
             example=self.example,
             description=self.description,
             readOnly=_spec.default_as_none(self.serialize_only, False),
+            writeOnly=_spec.default_as_none(self.deserialize_only, False),
             enum=self.enum,
             nullable=_spec.default_as_none(self.nullable, False),
             format=self._metadata['data_format']
@@ -225,7 +228,8 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
         get_value = operator.getitem if isinstance(obj, Mapping) else getattr
         values = {}
         for field in self._fields.values():
-            field: Schema
+            if field.deserialize_only:
+                continue
             try:
                 value = get_value(obj, field.attr)
             except (AttributeError, KeyError):

@@ -17,7 +17,6 @@ from openapi.router import join_path
 from openapi.schema import schemas
 from openapi.schema.exceptions import DeserializationError
 from openapi.schema.schemas import Schema
-from openapi.typing import GeneralModelSchema
 from openapi.utils import make_schema, make_instance
 from openapi.ui import swagger_ui
 from openapi import spec as _spec
@@ -34,7 +33,7 @@ class Operation:
             tags: typing.List[str] = None,
             summary: str = None,
             description: str = None,
-            response_schema: GeneralModelSchema = None,
+            response_schema=None,
             deprecated: bool = False,
             include_in_spec=True,
             permission=None
@@ -158,12 +157,14 @@ class OpenAPI:
             *,
             title: str,
             url_prefix=None,
+            version='0.1.0',
             extra_specification=None,
             enable_swagger_ui=False,
     ):
         self._path_items = {}
         self._spec_id = uuid.uuid4().hex
         self._title = title
+        self._version = version
         self._urls = []
         self._url_prefix = url_prefix or '/'
         self._extra_specification = extra_specification
@@ -246,7 +247,7 @@ class OpenAPI:
             'openapi': '3.0.3',
             'info': {
                 'title': self._title,
-                'version': '0.1.0'
+                'version': self._version
             },
             'paths': self._path_items,
             'components': {
