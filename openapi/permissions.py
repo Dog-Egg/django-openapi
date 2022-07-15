@@ -1,11 +1,31 @@
 from django.http import HttpRequest
 
+from openapi.http.exceptions import Forbidden, Unauthorized
+
 
 class PermissionABC:
-    def has_permission(self, request: HttpRequest):
+    def check_permission(self, request):
         raise NotImplementedError
 
+    def to_spec(self):
+        return [{'_$unknown$_': []}]
 
-class IsAuthenticated(PermissionABC):
+
+class DjangoPermission(PermissionABC):
+    def has_permission(self, request: HttpRequest):
+        return True
+
+    def check_permission(self, request):
+        if not self.has_permission(request):
+            if request.user and request.user.is_authenticated:
+                raise Forbidden
+            raise Unauthorized
+
+    def to_spec(self):
+        # TODO get settings
+        return super().to_spec()
+
+
+class IsAuthenticated(DjangoPermission):
     def has_permission(self, request: HttpRequest):
         return bool(request.user and request.user.is_authenticated)

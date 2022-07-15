@@ -1,4 +1,5 @@
 import datetime
+from decimal import Decimal
 
 import pytest
 
@@ -19,9 +20,14 @@ from openapi.utils import make_instance
 
         # integer
         (schemas.Integer, 1, 1),
+        (schemas.Integer, Decimal('1'), 1),
 
         # float
         (schemas.Float, 1.0, 1.0),
+        (schemas.Float, 1, 1.0),
+        (schemas.Float, 1.1, 1.1),
+        (schemas.Float, Decimal('1'), 1.0),
+        (schemas.Float, Decimal('1.1'), 1.1),
 
         # list
         (schemas.List(schemas.String), 'abc', ['a', 'b', 'c']),
@@ -52,9 +58,9 @@ def test_serialize(schema, input_value, output_value):
         (schemas.Integer, '1', '不是一个整数'),
         (schemas.Integer, 1.1, '不是一个整数'),
         (schemas.Integer, 'a', '不是一个整数'),
+        (schemas.Integer, Decimal('1.1'), '不是一个整数'),
 
         # float
-        (schemas.Float, 1, '不是一个浮点数'),
         (schemas.Float, '1.1', '不是一个浮点数'),
         (schemas.Float, 'a', '不是一个浮点数'),
 

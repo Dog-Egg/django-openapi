@@ -13,7 +13,7 @@
 - [x] 基础结构
 - [x] 路由注册
 - [x] Request Body Content-Type
-- [ ] 表述 authentication specification (401, 403)
+- [x] 接口认证 (401, 403)
 - [ ] 代理处理
 
 ### Schema
@@ -26,7 +26,6 @@
     - [x] String
     - [x] Integer
     - [x] Float
-    - [ ] Decimal
     - [ ] Datetime
     - [ ] Time
     - [ ] Date

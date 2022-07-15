@@ -21,6 +21,7 @@ class BookSchema(schemas.Model):
     title = schemas.String(description='书名', example='三体')
     tag = schemas.String(description='标签', enum=['科幻', '喜剧', '传记'])
     author_id = schemas.Integer(description='作者ID', example=1, validators=[ValidateAuthorID()])
+    price = schemas.Float(description='价格', multiple_of=0.01, gt=0, lt=1000)
     created_at = schemas.Datetime(description='创建时间', serialize_only=True)
 
 

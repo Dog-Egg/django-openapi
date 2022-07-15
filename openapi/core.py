@@ -5,11 +5,11 @@ import uuid
 
 import django.urls
 from django.conf import settings
-from django.http import JsonResponse, HttpResponse, HttpRequest
+from django.http import JsonResponse, HttpResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from openapi.http.exceptions import HttpException, NotFound, MethodNotAllowed, Unauthorized, Forbidden
+from openapi.http.exceptions import HttpException, NotFound, MethodNotAllowed
 from openapi.parameters import Path
 from openapi.parameters.parse import ParameterParser
 from openapi.permissions import PermissionABC
@@ -18,7 +18,7 @@ from openapi.schema import schemas
 from openapi.schema.exceptions import DeserializationError
 from openapi.schema.schemas import Schema
 from openapi.typing import GeneralModelSchema
-from openapi.utils import make_schema, merge, make_instance
+from openapi.utils import make_schema, make_instance
 from openapi.ui import swagger_ui
 from openapi import spec as _spec
 
@@ -63,19 +63,11 @@ class Operation:
         setattr(handler, self._HANDLER_OPERATION_KEY, self)
         return handler
 
-    def _check_permission(self, request: HttpRequest):
-        if not self.permission:
-            return
-        if not self.permission.has_permission(request):
-            if request.user and request.user.is_authenticated:
-                raise Forbidden
-            raise Unauthorized
-
     def wrap_invoke(self, handler, request, *args, **kwargs):
         kwargs.update(self.parser.parse_request(request))
 
-        # permission
-        self._check_permission(request)
+        # check permission
+        self.permission and self.permission.check_permission(request)
 
         rv = handler(request, *args, **kwargs)
         if isinstance(rv, HttpResponse):
@@ -111,7 +103,7 @@ class Operation:
                     'description': 'error'
                 }
             },
-            'security': self.permission and [{'Login': _spec.protect([])}],
+            'security': self.permission and _spec.skip(self.permission.to_spec())
         }
 
 
@@ -258,18 +250,12 @@ class OpenAPI:
             },
             'paths': self._path_items,
             'components': {
-                'schemas': _spec.components.get_components(spec_id=self._spec_id, namespace='schemas'),
-                'securitySchemes': {
-                    'Login': {
-                        'type': 'http',
-                        'scheme': 'basic',
-                    }
-                }
+                'schemas': _spec.components.get_components(spec_id=self._spec_id, namespace='schemas')
             }
         })
 
         if self._extra_specification:
-            spec = merge(spec, self._extra_specification)
+            spec = _spec.merge(spec, self._extra_specification)
 
         json_dumps_params = dict(indent=2, ensure_ascii=False) if settings.DEBUG else {}
         try:

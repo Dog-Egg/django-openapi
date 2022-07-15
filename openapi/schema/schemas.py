@@ -4,6 +4,8 @@ import operator
 import typing
 from collections import defaultdict
 from collections.abc import Mapping, Iterable
+from decimal import Decimal
+from numbers import Number
 
 from openapi.schema.validators import Validator, Choices, Range, MultipleOf, Length, RegExp
 from openapi.schema.exceptions import DeserializationError, SerializationError
@@ -13,7 +15,7 @@ from openapi.utils import make_instance
 undefined = type('undefined', (), {'__bool__': lambda self: False})()
 
 _DEFAULT_METADATA = dict(
-    data_type='string',
+    data_type=None,
     data_format=None,
 )
 
@@ -21,14 +23,12 @@ _DEFAULT_METADATA = dict(
 class _SchemaMeta(type):
 
     def __new__(mcs, name, bases, attrs):
-        if bases:
-            # 继承 metadata
-            metadata = getattr(bases[0], '_metadata', _DEFAULT_METADATA).copy()
-            meta = attrs.get('Meta')
-            if inspect.isclass(meta):
-                for key, val in _DEFAULT_METADATA.items():
-                    metadata[key] = getattr(meta, key, val)
-                del attrs['Meta']
+        meta = attrs.get('Meta')
+        if inspect.isclass(meta):
+            metadata = {}
+            for key, val in _DEFAULT_METADATA.items():
+                metadata[key] = getattr(meta, key, val)
+            del attrs['Meta']
             attrs['_metadata'] = metadata
         return super().__new__(mcs, name, bases, attrs)
 
@@ -126,9 +126,9 @@ class Schema(metaclass=_SchemaMeta):
             default=self.default or None,
             example=self.example,
             description=self.description,
-            readOnly=self.serialize_only,
+            readOnly=_spec.default_as_none(self.serialize_only, False),
             enum=self.enum,
-            nullable=self.nullable,
+            nullable=_spec.default_as_none(self.nullable, False),
             format=self._metadata['data_format']
         )
 
@@ -387,9 +387,10 @@ class Integer(_Number):
         return i
 
     def _serialize(self, value):
-        if not isinstance(value, int):
+        if (not isinstance(value, (int, Decimal))) or (
+                isinstance(value, Decimal) and value.as_tuple().exponent):
             raise SerializationError('不是一个整数')
-        return value
+        return int(value)
 
 
 class Float(_Number):
@@ -404,9 +405,9 @@ class Float(_Number):
             raise DeserializationError('不是一个浮点数')
 
     def _serialize(self, value):
-        if not isinstance(value, float):
+        if not isinstance(value, (Number, Decimal)):
             raise SerializationError('不是一个浮点数')
-        return value
+        return float(value)
 
 
 class Boolean(Schema):

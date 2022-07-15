@@ -23,7 +23,20 @@ from .views import Auth
 from library import views
 from library.views import BookSchema
 
-openapi = OpenAPI(title='This is example', enable_swagger_ui=True)
+openapi = OpenAPI(title='This is example', enable_swagger_ui=True, extra_specification={
+    'components': {
+        'securitySchemes': {
+            'Login': {
+                'type': 'oauth2',
+                'flows': {
+                    'password': {
+                        'tokenUrl': '/auth'
+                    }
+                }
+            }
+        }
+    }
+})
 openapi.add_route('/books', views.BooksAPI)
 openapi.add_route(Path('/books/{book_id}', book_id=BookSchema.id), views.BookAPI)
 openapi.add_route('/authors', views.AuthorAPI)
