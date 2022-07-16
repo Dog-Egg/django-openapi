@@ -54,6 +54,7 @@ class Schema(metaclass=_SchemaMeta):
             fallback: typing.Callable[[typing.Any], typing.Any] = None,  # only serialize
             serialize_only=False,
             deserialize_only=False,
+            allow_blank=False,  # only deserialize
             enum=None,
 
             description: str = None,  # openapi spec
@@ -69,6 +70,7 @@ class Schema(metaclass=_SchemaMeta):
         self.fallback = fallback
         self.serialize_only = serialize_only
         self.deserialize_only = deserialize_only
+        self.allow_blank = allow_blank
 
         self.description = description
         self.example = example
@@ -176,6 +178,7 @@ class _ModelMeta(_SchemaMeta):
 
 class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
     _anonymous = False
+    _fields: typing.Dict[str, Schema]
 
     class Meta:
         data_type = 'object'
@@ -184,7 +187,7 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
         super().__init__(*args, **kwargs)
         self.__required_fields = required_fields
 
-    def __is_required(self, field: Schema):
+    def __get_required(self, field: Schema):
         if self.__required_fields is not None:
             return field.name in self.__required_fields
         return field.required
@@ -197,9 +200,15 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
             if field.serialize_only:
                 continue
 
-            if field.alias not in obj:
+            if (
+                    field.alias not in obj
+            ) or (
+                    not field.allow_blank
+                    and isinstance(obj[field.alias], str)
+                    and not obj[field.alias].strip()  # blank
+            ):
                 # required
-                if self.__is_required(field):
+                if self.__get_required(field):
                     errors[field.alias].append('这个字段是必需的')
 
                 # default
@@ -233,7 +242,7 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
             try:
                 value = get_value(obj, field.attr)
             except (AttributeError, KeyError):
-                if self.__is_required(field):
+                if self.__get_required(field):
                     if field.fallback:
                         value = field.fallback(undefined)
                         if value is undefined:
@@ -272,7 +281,7 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
         required = []
         for field in self._fields.values():
             properties[field.alias] = field.to_spec(spec_id)
-            if self.__is_required(field):
+            if self.__get_required(field):
                 required.append(field.alias)
 
         # required 不添加到 component schemas

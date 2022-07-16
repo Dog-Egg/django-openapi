@@ -161,7 +161,7 @@ class OpenAPI:
             extra_specification=None,
             enable_swagger_ui=False,
     ):
-        self._path_items = {}
+        self._path_items_spec = {}
         self._spec_id = uuid.uuid4().hex
         self._title = title
         self._version = version
@@ -184,12 +184,12 @@ class OpenAPI:
 
         django_path, openapi_path, path_parameters_spec = self._parse_path(path)
 
-        operations = {}
+        operations_spec = {}
         for method, operation in self._parse_apicls(apicls).items():
             operation: Operation
-            operations[method] = operation.to_spec(self._spec_id, path_parameters=path_parameters_spec)
+            operations_spec[method] = operation.to_spec(self._spec_id, path_parameters=path_parameters_spec)
 
-        self._path_items[openapi_path] = operations
+        self._path_items_spec[openapi_path] = operations_spec
         self._register_django_url(django_path, apicls.as_view())
 
     @property
@@ -249,7 +249,7 @@ class OpenAPI:
                 'title': self._title,
                 'version': self._version
             },
-            'paths': self._path_items,
+            'paths': self._path_items_spec,
             'components': {
                 'schemas': _spec.components.get_components(spec_id=self._spec_id, namespace='schemas')
             }

@@ -205,3 +205,37 @@ def test_number_multiple():
 
     with pytest.raises(DeserializationError, match='^The value must be a multiple of 0.01$'):
         schemas.Float(multiple_of=0.01).deserialize(1.002)
+
+
+def test_field_blank():
+    # 不可为空
+    class Schema1(schemas.Model):
+        f1 = schemas.String()
+        f2 = schemas.Integer()
+
+    try:
+        Schema1().deserialize({'f1': '', 'f2': ' '})
+    except DeserializationError as exc:
+        assert exc.error == {'f1': ['这个字段是必需的'], 'f2': ['这个字段是必需的']}
+
+    # 可为空
+    class Schema2(schemas.Model):
+        f1 = schemas.String(allow_blank=True)
+
+    assert Schema2().deserialize({'f1': ' '}) == {'f1': ' '}
+
+    # 可为空但是类型错误
+    class Schema3(schemas.Model):
+        f1 = schemas.Integer(allow_blank=True)
+
+    try:
+        Schema3().deserialize({'f1': ''})
+    except DeserializationError as exc:
+        assert exc.error == {'f1': ['不是一个整数']}
+
+    # 实际应用
+    class Search(schemas.Model):
+        arg1 = schemas.Integer(required=False)
+        arg2 = schemas.Integer(required=False)
+
+    assert Search().deserialize({'arg1': '', 'arg2': '123'}) == {'arg2': 123}
