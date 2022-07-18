@@ -168,7 +168,8 @@ def test_field_attr_alias():
 
 def test_validate_error():
     class Schema1(schemas.Model):
-        a = schemas.String(validators=[validators.Length(min=6), validators.Length(max=2)])
+        a = schemas.String(validators=[validators.LengthValidator(min_length=6), validators.LengthValidator(
+            max_length=2)])
 
     with pytest.raises(DeserializationError):
         try:

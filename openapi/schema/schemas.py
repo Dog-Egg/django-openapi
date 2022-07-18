@@ -7,8 +7,9 @@ from collections.abc import Mapping, Iterable
 from decimal import Decimal
 from numbers import Number
 
-from openapi.schema.validators import Validator, Choices, Range, MultipleOf, Length, RegExp
-from openapi.schema.exceptions import DeserializationError, SerializationError
+from openapi.schema.validators import ChoicesValidator, RangeValidator, MultipleOfValidator, LengthValidator, \
+    RegExpValidator
+from openapi.schema.exceptions import DeserializationError, SerializationError, ValidationError
 from openapi import spec as _spec
 from openapi.utils import make_instance
 
@@ -50,10 +51,10 @@ class Schema(metaclass=_SchemaMeta):
             required: bool = None,  # apply to schema
             nullable: bool = False,
             default=undefined,  # only deserialize
-            validators: typing.List[Validator] = None,  # only deserialize
+            validators: typing.List[typing.Callable[[typing.Any], None]] = None,  # only deserialize
             fallback: typing.Callable[[typing.Any], typing.Any] = None,  # only serialize
-            serialize_only=False,
-            deserialize_only=False,
+            serialize_only=False,  # read only
+            deserialize_only=False,  # write only
             allow_blank=False,  # only deserialize
             enum=None,
 
@@ -78,7 +79,7 @@ class Schema(metaclass=_SchemaMeta):
         # enum
         self.enum = enum
         if enum:
-            self.validators.append(Choices(enum))
+            self.validators.append(ChoicesValidator(enum))
 
     def deserialize(self, obj):
         if obj is None:
@@ -91,9 +92,9 @@ class Schema(metaclass=_SchemaMeta):
         errors = []
         for validator in self.validators:
             try:
-                validator.validate(obj)
-            except DeserializationError as exc:
-                errors.append(exc.error)
+                validator(obj)
+            except ValidationError as exc:
+                errors.append(exc.message)
 
         if errors:
             raise DeserializationError(errors)
@@ -319,11 +320,11 @@ class String(Schema):
         self.min_length = min_length
         self.max_length = max_length
         if min_length is not None or max_length is not None:
-            self.validators.append(Length(min=min_length, max=max_length))
+            self.validators.append(LengthValidator(min_length=min_length, max_length=max_length))
 
         self.pattern = pattern
         if pattern:
-            regexp = RegExp(pattern)
+            regexp = RegExpValidator(pattern)
             self.pattern = regexp.pattern.pattern
             self.validators.append(regexp)
 
@@ -360,11 +361,11 @@ class _Number(Schema):
         self.lt = lt
         self.lte = lte
         if any(x is not None for x in (gt, gte, lt, lte)):
-            self.validators.append(Range(gt=gt, gte=gte, lt=lt, lte=lte))
+            self.validators.append(RangeValidator(gt=gt, gte=gte, lt=lt, lte=lte))
 
         self.multiple_of = multiple_of
         if multiple_of is not None:
-            self.validators.append(MultipleOf(self.multiple_of))
+            self.validators.append(MultipleOfValidator(self.multiple_of))
 
     def _deserialize(self, obj):
         raise NotImplementedError

@@ -74,7 +74,7 @@ class Operation:
 
         if self.response_schema:
             rv = self.response_schema.serialize(rv)
-        return JsonResponse(rv, safe=False)
+        return JsonResponse(rv)
 
     def to_spec(self, spec_id, *, path_parameters):
         if not self.include_in_spec:

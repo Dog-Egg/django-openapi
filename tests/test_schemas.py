@@ -6,7 +6,7 @@ import pytest
 from openapi.schema import schemas
 from openapi.schema.exceptions import SerializationError, DeserializationError
 from openapi.schema.schemas import Schema
-from openapi.schema.validators import Range
+from openapi.schema.validators import RangeValidator
 from openapi.utils import make_instance
 
 
@@ -190,7 +190,7 @@ def test_number_range():
 
     with pytest.raises(DeserializationError,
                        match="['The value must be less than 1', 'The value must be greater than 1']"):
-        schemas.Integer(gt=1, validators=[Range(lt=1)]).deserialize(1)
+        schemas.Integer(gt=1, validators=[RangeValidator(lt=1)]).deserialize(1)
 
 
 def test_number_multiple():

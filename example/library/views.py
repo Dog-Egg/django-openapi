@@ -1,23 +1,25 @@
 from django.contrib.auth.models import User
 
+from openapi.extension import model2schema
 from . import models
 from openapi.http.exceptions import NotFound
 from openapi.parameters import Query, Body
-from openapi.schema.exceptions import DeserializationError
+from openapi.schema.exceptions import ValidationError
 from openapi.core import API, Operation
-from openapi.schema import schemas, validators
+from openapi.schema import schemas
 from openapi.permissions import IsAuthenticated
+from .models import Foo
 
 
 class BookSchema(schemas.Model):
     """图书"""
 
-    class ValidateAuthorID(validators.Validator):
-        def validate(self, value) -> None:
+    class ValidateAuthorID:
+        def __call__(self, value) -> None:
             try:
                 models.Author.objects.get(pk=value)
             except models.Author.DoesNotExist:
-                raise DeserializationError('ID不存在')
+                raise ValidationError('ID不存在')
 
     id = schemas.Integer(description='图书ID', example=1, serialize_only=True)
     title = schemas.String(description='书名', example='三体')
@@ -128,3 +130,14 @@ class UsersAPI(API):
     )
     def get(self, request):
         return User.objects.all()
+
+
+class Model2SchemaDemo(API):
+    FooSchema = model2schema(Foo)
+
+    @Operation(
+        tags=['model2schema'],
+        response_schema=FooSchema,
+    )
+    def post(self, request, body=Body(FooSchema)):
+        return Foo.objects.create(**body)
