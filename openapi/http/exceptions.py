@@ -1,25 +1,16 @@
-class HttpException(Exception):
-    status = 500
+import typing
 
-    def __init__(self, body: dict = None):
-        self.body = body or {}
+from django.http.response import HttpResponseBase, HttpResponse
 
 
-class BadRequest(HttpException):
-    status = 400
+class RaiseResponse(Exception):
+    def __init__(self, response: HttpResponseBase):
+        self.response = response
 
 
-class Unauthorized(HttpException):
-    status = 401
-
-
-class Forbidden(HttpException):
-    status = 403
-
-
-class NotFound(HttpException):
-    status = 404
-
-
-class MethodNotAllowed(HttpException):
-    status = 405
+def abort(status_or_response: typing.Union[int, HttpResponseBase]):
+    if isinstance(status_or_response, HttpResponseBase):
+        response = status_or_response
+    else:
+        response = HttpResponse(status=status_or_response)
+    raise RaiseResponse(response)

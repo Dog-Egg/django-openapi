@@ -210,7 +210,8 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
             ):
                 # required
                 if self.__get_required(field):
-                    errors[field.alias].append('这个字段是必需的')
+                    msg = '字段不能是空白的' if field.alias in obj else '这个字段是必需的'
+                    errors[field.alias].append(msg)
 
                 # default
                 if field.default is not undefined:

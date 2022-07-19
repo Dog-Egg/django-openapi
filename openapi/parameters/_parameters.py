@@ -3,9 +3,9 @@ import json as _json
 from abc import ABC
 from collections import UserString, ChainMap
 
-from django.http import HttpRequest
+from django.http import HttpRequest, JsonResponse
 
-from openapi.http.exceptions import BadRequest
+from openapi.http.exceptions import abort
 from openapi.schema.schemas import Model, Schema
 from openapi.typing import GeneralModelSchema, GeneralSchema
 from openapi.utils import make_schema
@@ -80,7 +80,7 @@ class Body(_Parser):
             try:
                 data = _json.loads(request.body)
             except (_json.JSONDecodeError, TypeError):
-                raise BadRequest({'message': '不是一个JSON'})
+                return abort(JsonResponse({'message': '不是一个JSON'}))
         else:
             # noinspection PyTypeChecker
             data = ChainMap(request.POST, request.FILES)

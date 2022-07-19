@@ -1,7 +1,8 @@
 from django.contrib.auth import login, authenticate, logout
+from django.http import JsonResponse
 
 from openapi.core import API, Operation
-from openapi.http.exceptions import BadRequest
+from openapi.http.exceptions import abort
 from openapi.parameters import Body
 from openapi.schema import schemas
 
@@ -18,7 +19,7 @@ class Auth(API):
         if user:
             login(request, user)
         else:
-            raise BadRequest({'message': '用户名或密码错误'})
+            abort(JsonResponse({'message': '用户名或密码错误'}))
 
     @Operation(
         summary='登出'

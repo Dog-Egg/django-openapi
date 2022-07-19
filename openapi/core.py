@@ -9,7 +9,7 @@ from django.http import JsonResponse, HttpResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from openapi.http.exceptions import HttpException, NotFound, MethodNotAllowed
+from openapi.http.exceptions import abort, RaiseResponse
 from openapi.parameters import Path
 from openapi.parameters.parse import ParameterParser
 from openapi.permissions import PermissionABC
@@ -126,8 +126,8 @@ class API(View):
 
             operation = Operation.from_handler(handler)
             rv = operation.wrap_invoke(handler, request, *args, **kwargs)
-        except HttpException as exc:
-            return JsonResponse(exc.body, status=exc.status)
+        except RaiseResponse as exc:
+            return exc.response
         except Exception:
             logger.exception('django-openapi')
             return JsonResponse({'message': 'Internal Server Error'}, status=500)
@@ -135,7 +135,7 @@ class API(View):
         return rv
 
     def http_method_not_allowed(self, request, *args, **kwargs):
-        raise MethodNotAllowed
+        abort(405)
 
     def _deserialize_path_parameters(self, kwargs):
         for name, schema in self.__path_parameters__.items():
@@ -144,7 +144,7 @@ class API(View):
             try:
                 kwargs[name] = schema.deserialize(kwargs[name])
             except DeserializationError:
-                raise NotFound({'message': 'Not Found'})
+                abort(404)
 
     @Operation(include_in_spec=False)
     def options(self, *args, **kwargs):

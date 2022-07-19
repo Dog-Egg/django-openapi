@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 
 from openapi.extension import model2schema
 from . import models
-from openapi.http.exceptions import NotFound
+from openapi.http.exceptions import abort
 from openapi.parameters import Query, Body
 from openapi.schema.exceptions import ValidationError
 from openapi.core import API, Operation
@@ -60,7 +60,7 @@ class BookAPI(API):
         try:
             return models.Book.objects.get(pk=pk)
         except models.Book.DoesNotExist:
-            raise NotFound
+            abort(404)
 
     @Operation(
         summary='获取图书详情',

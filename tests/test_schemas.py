@@ -211,12 +211,12 @@ def test_field_blank():
     # 不可为空
     class Schema1(schemas.Model):
         f1 = schemas.String()
-        f2 = schemas.Integer()
+        f2 = schemas.Integer(required=False)
 
     try:
         Schema1().deserialize({'f1': '', 'f2': ' '})
     except DeserializationError as exc:
-        assert exc.error == {'f1': ['这个字段是必需的'], 'f2': ['这个字段是必需的']}
+        assert exc.error == {'f1': ['字段不能是空白的']}
 
     # 可为空
     class Schema2(schemas.Model):

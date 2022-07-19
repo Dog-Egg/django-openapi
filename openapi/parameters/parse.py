@@ -2,11 +2,11 @@ import inspect
 import itertools
 import typing
 
-from django.http import HttpRequest
+from django.http import HttpRequest, JsonResponse
 
 from ._parameters import _Parameters, Body
 from .. import spec
-from ..http.exceptions import BadRequest
+from ..http.exceptions import abort
 from ..schema.exceptions import DeserializationError
 from ..schema.schemas import Schema
 
@@ -55,5 +55,5 @@ class ParameterParser:
             try:
                 rv[name] = param.parse_request(request)
             except DeserializationError as exc:
-                raise BadRequest(exc.error)
+                abort(JsonResponse(exc.error))
         return rv
