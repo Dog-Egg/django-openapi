@@ -1,1 +1,1 @@
-django
+python-dateutil

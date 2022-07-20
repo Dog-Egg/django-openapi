@@ -254,7 +254,10 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
                 else:
                     continue
 
-            values[field.alias] = field.serialize(value)
+            try:
+                values[field.alias] = field.serialize(value)
+            except SerializationError as e:
+                raise SerializationError('%s %s' % (field.alias, e))
         return values
 
     @classmethod
@@ -491,7 +494,8 @@ class Datetime(Schema):
         data_format = 'date-time'
 
     def _deserialize(self, obj):
-        pass
+        from dateutil.parser import isoparse
+        return isoparse(obj)
 
     def _serialize(self, obj: datetime.datetime):
         return obj.isoformat()
