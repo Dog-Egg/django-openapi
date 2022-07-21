@@ -34,7 +34,7 @@ class _SchemaMeta(type):
         return super().__new__(mcs, name, bases, attrs)
 
 
-class Schema(metaclass=_SchemaMeta):
+class SchemaABC(metaclass=_SchemaMeta):
     _metadata: dict
 
     def __new__(cls, *args, **kwargs):
@@ -144,7 +144,7 @@ class _ContainerSchema:
 
 
 class _ModelMeta(_SchemaMeta):
-    _fields: typing.Dict[str, Schema]
+    _fields: typing.Dict[str, SchemaABC]
 
     def __new__(mcs, classname, bases, attrs: dict):
         fields = {}
@@ -155,7 +155,7 @@ class _ModelMeta(_SchemaMeta):
                 fields.update(base._fields)
 
         for name, field in attrs.copy().items():
-            if isinstance(field, Schema):
+            if isinstance(field, SchemaABC):
                 if name.startswith('_'):
                     raise ValueError('Field name cannot start with %r' % '_')
 
@@ -177,9 +177,9 @@ class _ModelMeta(_SchemaMeta):
         return super().__getattribute__(name)
 
 
-class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
+class Model(SchemaABC, _ContainerSchema, metaclass=_ModelMeta):
     _anonymous = False
-    _fields: typing.Dict[str, Schema]
+    _fields: typing.Dict[str, SchemaABC]
 
     class Meta:
         data_type = 'object'
@@ -188,7 +188,7 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
         super().__init__(*args, **kwargs)
         self.__required_fields = required_fields
 
-    def __get_required(self, field: Schema):
+    def __get_required(self, field: SchemaABC):
         if self.__required_fields is not None:
             return field.name in self.__required_fields
         return field.required
@@ -261,7 +261,7 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
         return values
 
     @classmethod
-    def from_dict(cls, fields: typing.Dict[str, Schema], *, name: str = None):
+    def from_dict(cls, fields: typing.Dict[str, SchemaABC], *, name: str = None):
         # noinspection PyTypeChecker
         schema_cls: typing.Type['Model'] = type(name or 'AnonymousSchema', (Model,), fields)
         if name is None:
@@ -313,7 +313,7 @@ class Model(Schema, _ContainerSchema, metaclass=_ModelMeta):
         return spec
 
 
-class String(Schema):
+class String(SchemaABC):
     class Meta:
         data_type = 'string'
 
@@ -356,7 +356,7 @@ class String(Schema):
         return spec
 
 
-class _Number(Schema):
+class _Number(SchemaABC):
     def __init__(self, *args, gt=None, gte=None, lt=None, lte=None, multiple_of=None, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -428,7 +428,7 @@ class Float(_Number):
         return float(value)
 
 
-class Boolean(Schema):
+class Boolean(SchemaABC):
     TRUE_VALUES = {1, '1', 'true', 'True', True}
     FALSE_VALUES = {0, '0', 'false', 'False', False}
 
@@ -448,12 +448,12 @@ class Boolean(Schema):
         return obj
 
 
-class List(Schema, _ContainerSchema):
+class List(SchemaABC, _ContainerSchema):
     class Meta:
         data_type = 'array'
 
-    def __init__(self, field_or_cls: typing.Union[Schema, typing.Type[Schema]] = None, *args, **kwargs):
-        self._field: Schema = make_instance(field_or_cls) or Any()
+    def __init__(self, field_or_cls: typing.Union[SchemaABC, typing.Type[SchemaABC]] = None, *args, **kwargs):
+        self._field: SchemaABC = make_instance(field_or_cls) or Any()
         super().__init__(*args, **kwargs)
 
     def _deserialize(self, obj):
@@ -488,7 +488,7 @@ class List(Schema, _ContainerSchema):
         return spec
 
 
-class Datetime(Schema):
+class Datetime(SchemaABC):
     class Meta:
         data_type = 'string'
         data_format = 'date-time'
@@ -501,7 +501,7 @@ class Datetime(Schema):
         return obj.isoformat()
 
 
-class Date(Schema):
+class Date(SchemaABC):
     class Meta:
         data_type = 'string'
         data_format = 'date'
@@ -520,7 +520,7 @@ class Date(Schema):
         return date.isoformat()
 
 
-class Any(Schema):
+class Any(SchemaABC):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault('nullable', True)
         super().__init__(*args, **kwargs)
@@ -537,7 +537,7 @@ class Password(String):
         data_format = 'password'
 
 
-class File(Schema):
+class File(SchemaABC):
     class Meta:
         data_type = 'string'
 

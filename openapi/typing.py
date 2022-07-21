@@ -1,15 +1,15 @@
 import typing
 
-from openapi.schema.schemas import Model, Schema
+from openapi.schema.schemas import Model, SchemaABC
 
 GeneralModelSchema = typing.Union[
     Model,
     typing.Type[Model],
-    typing.Dict[str, Schema]
+    typing.Dict[str, SchemaABC]
 ]
 
 GeneralSchema = typing.Union[
-    Schema,
-    typing.Type[Schema],
+    SchemaABC,
+    typing.Type[SchemaABC],
     GeneralModelSchema,
 ]

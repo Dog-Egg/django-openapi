@@ -16,7 +16,7 @@ from openapi.permissions import PermissionABC
 from openapi.router import join_path
 from openapi.schema import schemas
 from openapi.schema.exceptions import DeserializationError
-from openapi.schema.schemas import Schema
+from openapi.schema.schemas import SchemaABC
 from openapi.utils import make_schema, make_instance
 from openapi.ui import swagger_ui
 from openapi import spec as _spec
@@ -42,7 +42,7 @@ class Operation:
         self.summary = summary
         self.description = description
 
-        self.response_schema: Schema = response_schema and make_schema(response_schema)
+        self.response_schema: SchemaABC = response_schema and make_schema(response_schema)
         self.deprecated = deprecated
         self.include_in_spec = include_in_spec
 
@@ -107,7 +107,7 @@ class Operation:
 
 
 class API(View):
-    __path_parameters__: typing.Dict[str, Schema]
+    __path_parameters__: typing.Dict[str, SchemaABC]
 
     @classmethod
     def as_view(cls, **initkwargs):

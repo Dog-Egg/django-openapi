@@ -6,7 +6,7 @@ from collections import UserString, ChainMap
 from django.http import HttpRequest, JsonResponse
 
 from openapi.http.exceptions import abort
-from openapi.schema.schemas import Model, Schema
+from openapi.schema import schemas
 from openapi.typing import GeneralModelSchema, GeneralSchema
 from openapi.utils import make_schema
 
@@ -21,7 +21,10 @@ class _Parameters(_Parser, ABC):
     location = None
 
     def __init__(self, schema: GeneralModelSchema):
-        self.schema: Model = make_schema(schema)
+        schema = make_schema(schema)
+        if not isinstance(schema, schemas.Model):
+            raise ValueError('Need a schema.Model object')
+        self.schema = schema
 
 
 class Query(_Parameters):
@@ -53,7 +56,7 @@ class Path(UserString):
 
 class Body(_Parser):
     def __init__(self, schema: GeneralSchema, *, content_type=None):
-        self.schema: Schema = make_schema(schema)
+        self.schema: schemas.SchemaABC = make_schema(schema)
 
         if not content_type:
             self.content_type_list = ['application/json']

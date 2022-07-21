@@ -5,7 +5,7 @@ import pytest
 
 from openapi.schema import schemas
 from openapi.schema.exceptions import SerializationError, DeserializationError
-from openapi.schema.schemas import Schema
+from openapi.schema.schemas import SchemaABC
 from openapi.schema.validators import RangeValidator
 from openapi.utils import make_instance
 
@@ -121,7 +121,7 @@ def test_serialize_error(schema, value, error_message):
 )
 def test_deserialize(schema, input_value, output_value):
     """反序列成功测试"""
-    schema: Schema = make_instance(schema)
+    schema: SchemaABC = make_instance(schema)
     value = schema.deserialize(input_value)
     assert value == output_value
     assert type(value) is type(output_value)
@@ -158,7 +158,7 @@ def test_deserialize(schema, input_value, output_value):
 def test_deserialize_error(schema, value, error_message):
     """反序列化错误测试"""
     with pytest.raises(DeserializationError, match=error_message):
-        schema: Schema = make_instance(schema)
+        schema: SchemaABC = make_instance(schema)
         schema.deserialize(value)
 
 

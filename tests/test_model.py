@@ -52,7 +52,7 @@ def test_field_visibility():
     class SchemaA(schemas.Model):
         foo = schemas.String()
 
-    assert isinstance(SchemaA.foo, schemas.Schema)  # 类可访问
+    assert isinstance(SchemaA.foo, schemas.SchemaABC)  # 类可访问
 
     # 实例不可访问
     with pytest.raises(AttributeError, match="""^'SchemaA' object has no attribute 'foo'$"""):
@@ -76,7 +76,7 @@ def test_field_conflict():
         Meta = schemas.Integer()  # 和内置属性重名
 
     assert SchemaA.deserialize == schemas.Model.deserialize
-    assert isinstance(SchemaA.Meta, schemas.Schema)
+    assert isinstance(SchemaA.Meta, schemas.SchemaABC)
     assert SchemaA._metadata
     # noinspection PyCallingNonCallable
     assert SchemaA().deserialize({'deserialize': '1', 'Meta': '2'}) == {'deserialize': 1, 'Meta': 2}

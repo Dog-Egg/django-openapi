@@ -8,7 +8,7 @@ from ._parameters import _Parameters, Body
 from .. import spec
 from ..http.exceptions import abort
 from ..schema.exceptions import DeserializationError
-from ..schema.schemas import Schema
+from ..schema.schemas import SchemaABC
 
 
 class ParameterParser:
@@ -32,7 +32,7 @@ class ParameterParser:
         for param_name, param in self._parameters.items():
             # noinspection PyProtectedMember
             for field_name, field in param.schema._fields.items():
-                field: Schema
+                field: SchemaABC
                 params.append({
                     'name': field.alias or field_name,
                     'in': param.location,
