@@ -62,19 +62,25 @@ class Operation:
         setattr(handler, self._HANDLER_OPERATION_KEY, self)
         return handler
 
-    def wrap_invoke(self, handler, request, *args, **kwargs):
-        kwargs.update(self.parser.parse_request(request))
+    @classmethod
+    def wrap(cls, handler):
+        self = cls.from_handler(handler)
 
-        # check permission
-        self.permission and self.permission.check_permission(request)
+        def wrapper(request, *args, **kwargs):
+            kwargs.update(self.parser.parse_request(request))
 
-        rv = handler(request, *args, **kwargs)
-        if isinstance(rv, HttpResponse):
-            return rv
+            # check permission
+            self.permission and self.permission.check_permission(request)
 
-        if self.response_schema:
-            rv = self.response_schema.serialize(rv)
-        return JsonResponse(rv)
+            rv = handler(request, *args, **kwargs)
+            if isinstance(rv, HttpResponse):
+                return rv
+
+            if self.response_schema:
+                rv = self.response_schema.serialize(rv)
+            return JsonResponse(rv)
+
+        return wrapper
 
     def to_spec(self, spec_id, *, path_parameters):
         if not self.include_in_spec:
@@ -122,22 +128,18 @@ class API(View):
 
         # noinspection PyBroadException
         try:
-            self._deserialize_path_parameters(kwargs)
-
-            operation = Operation.from_handler(handler)
-            rv = operation.wrap_invoke(handler, request, *args, **kwargs)
+            self._parse_path_parameters(kwargs)
+            return Operation.wrap(handler)(request, *args, **kwargs)
         except RaiseResponse as exc:
             return exc.response
         except Exception:
             logger.exception('django-openapi')
             return JsonResponse({'message': 'Internal Server Error'}, status=500)
 
-        return rv
-
     def http_method_not_allowed(self, request, *args, **kwargs):
         abort(405)
 
-    def _deserialize_path_parameters(self, kwargs):
+    def _parse_path_parameters(self, kwargs):
         for name, schema in self.__path_parameters__.items():
             if name not in kwargs:
                 continue
@@ -177,10 +179,10 @@ class OpenAPI:
         self._urls.append(django.urls.path(*args, **kwargs))
 
     def add_route(self, path: typing.Union[str, Path], apicls: typing.Type[API]):
+        path = Path(path)
+
         # noinspection PyTypeChecker
-        apicls: typing.Type[API] = type(apicls.__name__, (apicls,), {'__path_parameters__': {}})
-        if isinstance(path, Path):
-            apicls.__path_parameters__.update(path.path_parameters)
+        apicls: typing.Type[API] = type(apicls.__name__, (apicls,), {'__path_parameters__': path.path_parameters})
 
         django_path, openapi_path, path_parameters_spec = self._parse_path(path)
 
@@ -194,6 +196,8 @@ class OpenAPI:
 
     @property
     def urls(self):
+        # from .views import API404
+        # self._urls.append(django.urls.re_path(self._join_path('.*'), API404.as_view()))
         return self._urls, None, None
 
     @staticmethod
@@ -212,19 +216,15 @@ class OpenAPI:
         return join_path(self._url_prefix, path)
 
     def _parse_path(self, path):
-        if isinstance(path, Path):
-            path_parameters = path.path_parameters
-        else:
-            path_parameters = None
-
+        path_parameters = path.path_parameters
         openapi_path = django_path = self._join_path(path)
 
         path_parameters_spec = []
-        pattern = re.compile(r"{(?P<parameter>[^>]+)}")
+        pattern = re.compile(r"{(?P<parameter>.*)}")
         for match in pattern.finditer(openapi_path):
             (parameter,) = match.groups()
 
-            if path_parameters and parameter in path_parameters:
+            if parameter in path_parameters:
                 schema = path_parameters[parameter]
             else:
                 schema = schemas.String()
@@ -236,7 +236,7 @@ class OpenAPI:
                 'description': schema.description,
                 'schema': schema.to_spec()
             })
-            django_path = django_path.replace(match.group(), '<%s>' % parameter)
+            django_path = django_path.replace(match.group(), '<openapi:%s>' % parameter)
 
         if not openapi_path.startswith('/'):
             openapi_path = '/' + openapi_path

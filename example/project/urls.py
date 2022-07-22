@@ -43,7 +43,7 @@ openapi.add_route('/authors', views.AuthorAPI)
 openapi.add_route('/images', views.ImageAPI)
 openapi.add_route('/users', views.UsersAPI)
 openapi.add_route('/auth', Auth),
-openapi.add_route('model2schema', views.Model2SchemaDemo)
+openapi.add_route('/model2schema', views.Model2SchemaDemo)
 
 urlpatterns = [
     path('', openapi.urls),

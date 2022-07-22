@@ -49,9 +49,12 @@ class Header(_Parameters):
 
 
 class Path(UserString):
-    def __init__(self, route, **kwargs):
-        super().__init__(route)
+    def __init__(self, _route_, **kwargs):
+        super().__init__(_route_)
         self.path_parameters = kwargs
+
+        if isinstance(_route_, Path):
+            self.path_parameters.update(_route_.path_parameters)
 
 
 class Body(_Parser):
