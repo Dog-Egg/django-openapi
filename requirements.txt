@@ -1,0 +1,5 @@
+# devDependencies
+
+-r requirements/packaging.txt
+-r requirements/testing.txt
+-r requirements/typing.txt

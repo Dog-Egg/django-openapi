@@ -1,0 +1,6 @@
+-r packaging.txt
+
+pytest
+pytest-django
+pytest-order
+requests

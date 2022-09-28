@@ -1,0 +1,2 @@
+include django_openapi/templates/*
+recursive-include django_openapi/static *

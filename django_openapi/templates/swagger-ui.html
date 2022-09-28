@@ -1,0 +1,68 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta
+            name="description"
+            content="SwaggerUI"
+    />
+    <title>SwaggerUI</title>
+    {% if load_local_static %}
+        <link rel="stylesheet" href="{% static 'swagger-ui/4.14.1/swagger-ui.css' %}">
+    {% else %}
+        <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@4.14.1/swagger-ui.css"/>
+    {% endif %}
+    <style>
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+<div id="swagger-ui"></div>
+{% if load_local_static %}
+    <script src="{% static 'swagger-ui/4.14.1/swagger-ui-bundle.js' %}"></script>
+{% else %}
+    <script src="https://unpkg.com/swagger-ui-dist@4.14.1/swagger-ui-bundle.js" crossorigin></script>
+{% endif %}
+{% if urls|length > 1 %}
+    {% if load_local_static %}
+        <script src="{% static 'swagger-ui/4.14.1/swagger-ui-standalone-preset.js' %}"></script>
+    {% else %}
+        <script src="https://unpkg.com/swagger-ui-dist@4.14.1/swagger-ui-standalone-preset.js" crossorigin></script>
+    {% endif %}
+    <script>
+        window.onload = function () {
+            window.ui = SwaggerUIBundle({
+                urls: {{ urls|safe }},
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                defaultModelExpandDepth: 2,
+                defaultModelsExpandDepth: 2,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                layout: "StandaloneLayout",
+            });
+        };
+    </script>
+{% else %}
+    <script>
+        window.onload = function () {
+            window.ui = SwaggerUIBundle({
+                {% for u in urls %}
+                    url: '{{ u.url }}',
+                {% endfor %}
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                defaultModelExpandDepth: 2,
+                defaultModelsExpandDepth: 2,
+            });
+        };
+    </script>
+{% endif %}
+</body>
+</html>
