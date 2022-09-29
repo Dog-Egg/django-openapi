@@ -8,7 +8,7 @@
             name="description"
             content="SwaggerUI"
     />
-    <title>SwaggerUI</title>
+    <title>Swagger UI</title>
     {% if load_local_static %}
         <link rel="stylesheet" href="{% static 'swagger-ui/4.14.1/swagger-ui.css' %}">
     {% else %}
@@ -27,6 +27,12 @@
 {% else %}
     <script src="https://unpkg.com/swagger-ui-dist@4.14.1/swagger-ui-bundle.js" crossorigin></script>
 {% endif %}
+<script>
+    function onComplete() {
+        var title = ui.specSelectors.info().toJS().title;
+        document.title = title.concat(' | Swagger UI');
+    }
+</script>
 {% if urls|length > 1 %}
     {% if load_local_static %}
         <script src="{% static 'swagger-ui/4.14.1/swagger-ui-standalone-preset.js' %}"></script>
@@ -46,6 +52,7 @@
                     SwaggerUIStandalonePreset
                 ],
                 layout: "StandaloneLayout",
+                onComplete: onComplete,
             });
         };
     </script>
@@ -60,6 +67,7 @@
                 deepLinking: true,
                 defaultModelExpandDepth: 2,
                 defaultModelsExpandDepth: 2,
+                onComplete: onComplete,
             });
         };
     </script>
