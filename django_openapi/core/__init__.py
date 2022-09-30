@@ -13,11 +13,11 @@ from http import HTTPStatus
 import django.urls
 from django.conf import settings
 from django.http import HttpRequest
-from django.http.response import HttpResponseBase, JsonResponse, HttpResponse
+from django.http.response import HttpResponseBase, JsonResponse
 from django.utils.functional import cached_property
 from django.views.decorators.csrf import csrf_exempt
 
-from django_openapi.core.error_handlers import default_error_handlers
+from .response import ResponseMaker
 from django_openapi.parameters.parameters import BaseParameter
 from django_openapi.exceptions import NotFound, MethodNotAllowed
 from django_openapi.parameters.style import StyleParser
@@ -46,6 +46,7 @@ class OpenAPI:
             version='0.1.0',
             security: typing.List[typing.Dict[str, typing.List[str]]] = None,
             security_schemes: dict = None,
+            response_maker=ResponseMaker,
     ):
         self._id: str = self.__get_id()
         self.title = title
@@ -55,9 +56,9 @@ class OpenAPI:
         self._security = security
         self._security_schemas = security_schemes
         self._spec_endpoint = '/apispec_%s' % self.id[:8]
-        self._error_handlers: _t.ErrorHandlers = default_error_handlers.copy()
         self._resources: typing.List[Resource] = []
         self._append_url(self._spec_endpoint, self.spec_view)
+        self.response_maker = response_maker
 
     @cached_property
     def id(self):
@@ -120,20 +121,6 @@ class OpenAPI:
         spec = self.get_spec(request)
         json_dumps_params = dict(indent=2, ensure_ascii=False) if settings.DEBUG else {}
         return JsonResponse(spec, json_dumps_params=json_dumps_params)
-
-    def errorhandler(self, e: typing.Type[Exception]):
-        def decorator(fn: _t.ErrorHandler):
-            self._error_handlers[e] = fn
-            return fn
-
-        return decorator
-
-    def _handle_error(self, e: Exception) -> HttpResponseBase:
-        for cls in e.__class__.__mro__:
-            if cls in self._error_handlers and issubclass(cls, Exception):
-                handler = self._error_handlers[cls]
-                return handler(e)
-        raise e
 
 
 class Resource:
@@ -209,20 +196,19 @@ class Resource:
     def as_view(self):
         @csrf_exempt
         def view(request, *args, **kwargs) -> HttpResponseBase:
+            maker = self.root.response_maker(request)  # type: ignore
             try:
-                return self._view(request, *args, **kwargs)
+                rv, status_code = self._view(request, *args, **kwargs)
             except Exception as exc:
-                if self.root:
-                    # noinspection PyProtectedMember
-                    return self.root._handle_error(exc)
-                raise
+                return maker.handle_error(exc)
+            return maker.make_response(rv, status_code)
 
         for decorator in self.view_decorators:
             view = decorator(view)
 
         return view
 
-    def _view(self, request, *args, **kwargs) -> HttpResponseBase:
+    def _view(self, request, *args, **kwargs) -> typing.Tuple[typing.Any, int]:
         kwargs = self._parse_path_parameters(kwargs)  # raise path parameter 404
 
         method = request.method.lower()
@@ -356,28 +342,15 @@ class Operation:
         handler.operation = self
         return handler
 
-    def wrapped_invoke(self, handler, request):
+    def wrapped_invoke(self, handler, request) -> typing.Tuple[typing.Any, int]:
         # check permission
         self.permission is not None and self.permission.check_permission(request)  # 401, 403
 
         kwargs = self.parse_request(request)
         rv = handler(**kwargs)
-
-        return self.make_response(rv)
-
-    def make_response(self, rv) -> HttpResponseBase:
-        if isinstance(rv, HttpResponseBase):
-            return rv
-
-        if self.response_schema:
+        if not isinstance(rv, HttpResponseBase) and self.response_schema:
             rv = self.response_schema.serialize(rv)
-
-        if rv is None:
-            rv = b''
-        if isinstance(rv, (str, bytes)):
-            return HttpResponse(rv, status=self.status_code)
-
-        return JsonResponse(rv, status=self.status_code)
+        return rv, self.status_code
 
     def to_spec(self, spec_id):
         if not self.include_in_spec:

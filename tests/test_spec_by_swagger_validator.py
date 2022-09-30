@@ -1,5 +1,6 @@
 """https://validator.swagger.io"""
 import json
+import os
 
 import pytest
 import requests
@@ -22,6 +23,7 @@ def get_spec_set():
 
 @pytest.mark.order("last")
 @pytest.mark.parametrize('spec', get_spec_set())
+@pytest.mark.skipif('TOX_ENV_NAME' not in os.environ, reason='比较慢，在 tox 中执行吧')
 def test_validate_spec(client, spec):
     resp = requests.post('https://validator.swagger.io/validator/debug', json=spec)
     assert resp.status_code == 200
