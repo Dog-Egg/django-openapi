@@ -5,10 +5,10 @@ from django.http.response import HttpResponseBase, HttpResponse, JsonResponse
 
 from django_openapi import typing as _t, exceptions
 
-__all__ = ['ResponseMaker']
+__all__ = ['Respond']
 
 
-class BaseResponseMaker:
+class BaseRespond:
     def make_response(self, rv, status_code: int) -> HttpResponseBase:
         raise NotImplementedError
 
@@ -28,7 +28,7 @@ def request_args_error(_, e: exceptions.RequestArgsError):
     return JsonResponse({'errors': e.errors}, status=400)
 
 
-class ResponseMaker(BaseResponseMaker):
+class Respond(BaseRespond):
     __error_handlers: '_t.ErrorHandlers' = {
         exceptions.BadRequest: http_error(400),
         exceptions.Unauthorized: http_error(401),

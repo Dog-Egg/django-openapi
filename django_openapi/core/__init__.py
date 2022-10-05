@@ -17,7 +17,7 @@ from django.http.response import HttpResponseBase, JsonResponse
 from django.utils.functional import cached_property
 from django.views.decorators.csrf import csrf_exempt
 
-from .response import ResponseMaker
+from . import respond as _respond
 from django_openapi.parameters.parameters import BaseParameter
 from django_openapi.exceptions import NotFound, MethodNotAllowed
 from django_openapi.parameters.style import StyleParser
@@ -46,7 +46,7 @@ class OpenAPI:
             version='0.1.0',
             security: typing.List[typing.Dict[str, typing.List[str]]] = None,
             security_schemes: dict = None,
-            response_maker=ResponseMaker,
+            respond=_respond.Respond,
     ):
         self._id: str = self.__get_id()
         self.title = title
@@ -58,7 +58,7 @@ class OpenAPI:
         self._spec_endpoint = '/apispec_%s' % self.id[:8]
         self._resources: typing.List[Resource] = []
         self._append_url(self._spec_endpoint, self.spec_view)
-        self.response_maker = response_maker
+        self.respond = respond
 
     @cached_property
     def id(self):
@@ -196,12 +196,12 @@ class Resource:
     def as_view(self):
         @csrf_exempt
         def view(request, *args, **kwargs) -> HttpResponseBase:
-            maker = self.root.response_maker(request)  # type: ignore
+            respond = self.root.respond(request)  # type: ignore
             try:
                 rv, status_code = self._view(request, *args, **kwargs)
             except Exception as exc:
-                return maker.handle_error(exc)
-            return maker.make_response(rv, status_code)
+                return respond.handle_error(exc)
+            return respond.make_response(rv, status_code)
 
         for decorator in self.view_decorators:
             view = decorator(view)
