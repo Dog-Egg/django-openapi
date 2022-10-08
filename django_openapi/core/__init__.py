@@ -27,7 +27,6 @@ from django_openapi.schema.exceptions import ValidationError
 from django_openapi.schema.schemas import BaseSchema
 from django_openapi.utils.functional import make_schema, make_instance
 from django_openapi.spec import utils as _spec, Tag
-from django_openapi import typing as _t
 
 
 class OpenAPI:
@@ -140,7 +139,7 @@ class Resource:
             path: str,
             *,
             path_parameters: typing.Dict[str, BaseSchema] = None,
-            tags: _t.Tags = None,
+            tags=None,
             permission=None,
             view_decorators=None,
             include_in_spec=True,
@@ -269,7 +268,7 @@ class Operation:
     def __init__(
             self,
             *,
-            tags: _t.Tags = None,
+            tags=None,
             summary: str = None,
             description: str = None,
             response_schema=None,

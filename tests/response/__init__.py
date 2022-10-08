@@ -13,17 +13,14 @@ class MyRespond(Respond):
             return JsonResponse(dict(code=0, data=rv, message='ok'), status=status_code)
         return super().make_response(rv, status_code)
 
-    @Respond.errorhandler(NotFound)
-    def handle_not_found(self, _):
-        return JsonResponse({'code': 404})
-
-    @Respond.errorhandler(RequestArgsError)
-    def handle_request_args_error(self, e: RequestArgsError):
-        return JsonResponse({'code': 400, 'errors': e.errors}, status=422)
-
-    @Respond.errorhandler(MyError)
-    def handle_my_error(self, e):
-        return JsonResponse(dict(code=1, message='error'), status=200)
+    def handle_error(self, e: Exception):
+        if isinstance(e, NotFound):
+            return JsonResponse({'code': 404})
+        if isinstance(e, RequestArgsError):
+            return JsonResponse({'code': 400, 'errors': e.errors}, status=422)
+        if isinstance(e, MyError):
+            return JsonResponse(dict(code=1, message='error'), status=200)
+        return super().handle_error(e)
 
 
 openapi = TestOpenAPI(

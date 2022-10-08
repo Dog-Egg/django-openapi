@@ -11,7 +11,6 @@ from django_openapi.spec.utils import default_as_none
 from django_openapi.exceptions import BadRequest, UnsupportedMediaType, RequestArgsError
 from django_openapi.schema import schemas
 from django_openapi.schema.exceptions import ValidationError
-from django_openapi import typing as _t
 from django_openapi.utils.functional import make_model_schema
 
 
@@ -29,7 +28,7 @@ class BaseParameter:
 
 
 class BaseRequestParameter(BaseParameter, ABC):
-    def __init__(self, schema: '_t.GeneralModelSchema'):
+    def __init__(self, schema):
         self.schema = make_model_schema(schema)
 
     def parse_request(self, request: HttpRequest):

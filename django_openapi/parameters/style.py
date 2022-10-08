@@ -1,8 +1,6 @@
 import typing
 from operator import getitem
 
-from django_openapi.schema import schemas
-
 
 class Style:
     # MATRIX = 'matrix'
@@ -31,7 +29,7 @@ class Style:
         return 'primitive'
 
     @property
-    def schema(self) -> 'schemas.BaseSchema':
+    def schema(self):
         return self._schema  # type: ignore
 
     @schema.setter

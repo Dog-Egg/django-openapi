@@ -13,7 +13,6 @@ from django_openapi.schema import validators as _validators
 from django_openapi.schema.exceptions import ValidationError
 from django_openapi.utils.functional import Filter, make_schema, make_instance
 from django_openapi.spec import utils as _spec
-from django_openapi import typing as _t
 
 UNDEFINED = type('undefined', (), {})()
 
@@ -484,7 +483,7 @@ class List(BaseSchema):
 
     def __init__(
             self,
-            child: '_t.GeneralSchema' = None,
+            child=None,
             *args,
             max_items: typing.Optional[int] = None,
             min_items: typing.Optional[int] = None,

@@ -1,7 +1,6 @@
 import inspect
 
 from django_openapi.schema import schemas
-from django_openapi import typing as _t
 
 
 def make_instance(obj):
@@ -10,7 +9,7 @@ def make_instance(obj):
     return obj
 
 
-def make_schema(obj: '_t.GeneralSchema') -> 'schemas.BaseSchema':
+def make_schema(obj):
     if isinstance(obj, dict):
         return make_model_schema(obj)
     obj = make_instance(obj)
@@ -19,7 +18,7 @@ def make_schema(obj: '_t.GeneralSchema') -> 'schemas.BaseSchema':
     return obj
 
 
-def make_model_schema(obj: '_t.GeneralModelSchema') -> 'schemas.Model':
+def make_model_schema(obj):
     if isinstance(obj, dict):
         obj = schemas.Model.from_dict(obj)
     obj = make_instance(obj)
