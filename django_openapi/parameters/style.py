@@ -70,6 +70,7 @@ def space_split(*args):
 class StyleParser:
     GETTERS = {
         (Style.FORM, True, 'array', 'query'): getlist,
+        (Style.FORM, False, 'array', 'query'): comma_split,
         (Style.FORM, True, 'primitive', 'query'): getitem,
         (Style.FORM, True, 'primitive', 'cookie'): getitem,
         (Style.SIMPLE, False, 'primitive', 'header'): getitem,
