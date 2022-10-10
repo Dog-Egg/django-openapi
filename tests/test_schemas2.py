@@ -38,9 +38,9 @@ def test_serialize_and_deserialize():
     deserialize_ok(schemas.String(whitespace=True), '', '')
     deserialize_ok(schemas.String(whitespace=True), ' \n', ' \n')
     deserialize_ok(schemas.String(whitespace=True, strip=True), ' \n', '')
-    deserialize_err(schemas.String(whitespace=False), '', 'cannot be a blank string')
-    deserialize_err(schemas.String(whitespace=False), ' ', 'cannot be a blank string')
-    deserialize_err(schemas.String(whitespace=False, strip=True), ' ', 'cannot be a blank string')
+    deserialize_err(schemas.String(whitespace=False), '', 'cannot be a whitespace string')
+    deserialize_err(schemas.String(whitespace=False), ' ', 'cannot be a whitespace string')
+    deserialize_err(schemas.String(whitespace=False, strip=True), ' ', 'cannot be a whitespace string')
 
     # integer
     serialize_ok(schemas.Integer, 1, 1)

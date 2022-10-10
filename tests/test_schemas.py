@@ -42,9 +42,9 @@ def test_field_blank():
         f2 = schemas.Integer(required=False)
 
     try:
-        Schema1().deserialize({'f1': '', 'f2': ' '})
+        Schema1().deserialize({'f1': '', 'f2': ''})
     except ValidationError as exc:
-        assert exc.format_errors() == {'f1': ['字段不能是空白的']}
+        assert exc.format_errors() == {'f1': ['字段不能为空']}
 
     # 可为空
     class Schema2(schemas.Model):

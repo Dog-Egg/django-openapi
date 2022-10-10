@@ -63,7 +63,7 @@ def test_not_required_and_not_allow_blank(client, get_oas):
     assert response.json() == {}
 
     response = client.put(f'{ResourceA.reverse()}?a= ')
-    assert response.json() == {}
+    assert response.json() == {'errors': {'a': ['cannot be a whitespace string']}}
 
     assert 'allowEmptyValue' not in itemgetter(get_oas(), ['paths', ResourceA.reverse(), 'put', 'parameters', 0])
 
@@ -74,7 +74,7 @@ def test_required_and_not_allow_blank(client):
     assert resp.json() == {'errors': {'a': ['这个字段是必需的']}}
 
     response = client.patch(f'{ResourceA.reverse()}?a=')
-    assert response.json() == {'errors': {'a': ['字段不能是空白的']}}
+    assert response.json() == {'errors': {'a': ['字段不能为空']}}
 
     response = client.patch(f'{ResourceA.reverse()}?a= ')
-    assert response.json() == {'errors': {'a': ['字段不能是空白的']}}
+    assert response.json() == {'errors': {'a': ['cannot be a whitespace string']}}

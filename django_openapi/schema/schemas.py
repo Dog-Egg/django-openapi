@@ -235,13 +235,11 @@ class Model(BaseSchema, metaclass=_ModelMeta):
             if (
                     field.alias not in obj
             ) or (
-                    not field.allow_blank
-                    and isinstance(obj[field.alias], str)
-                    and not obj[field.alias].strip()  # blank
+                    not field.allow_blank and obj[field.alias] == ''
             ):
                 # required
                 if self.__check_required(field):
-                    msg = '字段不能是空白的' if field.alias in obj else '这个字段是必需的'
+                    msg = '字段不能为空' if field.alias in obj else '这个字段是必需的'
                     error.setitem(field.alias, ValidationError(msg))
 
                 # default
@@ -384,7 +382,7 @@ class String(BaseSchema):
             value = value.strip()
 
         if not self.whitespace and (not value or not value.strip()):
-            raise ValidationError('cannot be a blank string')
+            raise ValidationError('cannot be a whitespace string')
 
         return value
 
