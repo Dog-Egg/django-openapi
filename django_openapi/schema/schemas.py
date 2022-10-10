@@ -356,9 +356,14 @@ class String(BaseSchema):
     class Meta:
         data_type = 'string'
 
-    def __init__(self, *args, strip=False, min_length=None, max_length=None, pattern=None, **kwargs):
+    def __init__(self, *args, strip=False, min_length=None, max_length=None, pattern=None, whitespace: bool = None,
+                 **kwargs):
         super().__init__(*args, **kwargs)
         self.strip = strip  # only deserialize
+
+        # 绝大多数时候不希望收到一个空白的字符串，whitespace 默认值应该为 False
+        # 但 whitespace 需要先兼容 allow_blank
+        self.whitespace = self.allow_blank if whitespace is None else whitespace  # only deserialize
 
         self.min_length = min_length
         self.max_length = max_length
@@ -377,6 +382,10 @@ class String(BaseSchema):
 
         if self.strip:
             value = value.strip()
+
+        if not self.whitespace and (not value or not value.strip()):
+            raise ValidationError('cannot be a blank string')
+
         return value
 
     def _serialize(self, value):

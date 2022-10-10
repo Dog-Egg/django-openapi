@@ -35,6 +35,13 @@ def test_serialize_and_deserialize():
 
     deserialize_err(schemas.String, 1, '必须是字符串')  # string 严格反序列，防止后端无法区分 None 和 "None" 等
 
+    deserialize_ok(schemas.String(whitespace=True), '', '')
+    deserialize_ok(schemas.String(whitespace=True), ' \n', ' \n')
+    deserialize_ok(schemas.String(whitespace=True, strip=True), ' \n', '')
+    deserialize_err(schemas.String(whitespace=False), '', 'cannot be a blank string')
+    deserialize_err(schemas.String(whitespace=False), ' ', 'cannot be a blank string')
+    deserialize_err(schemas.String(whitespace=False, strip=True), ' ', 'cannot be a blank string')
+
     # integer
     serialize_ok(schemas.Integer, 1, 1)
     serialize_ok(schemas.Integer, Decimal('1'), 1)
