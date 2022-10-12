@@ -212,7 +212,8 @@ class Resource:
 
         method = request.method.lower()
         if method in self.HTTP_METHODS and hasattr(self.klass, method):
-            handler = getattr(self.klass(request, *args, **kwargs), method)
+            instance = self.klass() if self.klass.__init__ is object.__init__ else self.klass(request, *args, **kwargs)
+            handler = getattr(instance, method)
         else:
             raise MethodNotAllowed  # raise 405
 
