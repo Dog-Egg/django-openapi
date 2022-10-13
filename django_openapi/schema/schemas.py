@@ -92,7 +92,7 @@ class BaseSchema(metaclass=_SchemaMeta):
         self.write_only = write_only
         self.allow_blank = allow_blank
 
-        self.description = description
+        self.description = _spec.clean_commonmark(description)
         self.example = example
 
         self.style = style or Style()
@@ -309,7 +309,7 @@ class Model(BaseSchema, metaclass=_ModelMeta):
                 required.append(field.alias)
         return required
 
-    def to_spec(self, spec_id, *, need_required_field=False):
+    def to_spec(self, spec_id, *, need_required_field=False, schema_id=None):
         spec = super().to_spec()
         properties = {}
         for field in self.fields:
@@ -317,25 +317,25 @@ class Model(BaseSchema, metaclass=_ModelMeta):
             properties[field.alias] = field.to_spec(spec_id)
 
         required = self.__get_required_list() if need_required_field else None
+        __doc__ = _spec.clean_commonmark(self.__class__.__doc__)
 
         spec.update(
             properties=properties,
             required=required,
-            description=self.description or self.__class__.__doc__  # 没有被注册为组件优先使用 description
+            description=self.description or __doc__  # 没有被注册为组件优先使用 description
         )
 
-        if self._metadata['register_as_component']:
-            # 注册的 Schema 不直接添加 required
+        if schema_id or self._metadata['register_as_component']:
             spec.update(
-                required=None,  # 清除 required
                 title=self._metadata['schema_name'] or self.__class__.__name__,
-                description=self.__class__.__doc__  # 注册为组件只使用 __doc__，因为 description 是动态的
+                description=__doc__  # 注册为组件只使用 __doc__，因为 description 是动态的
             )
 
-            schema_id = '%s.%s' % (self.__class__.__module__, self.__class__.__qualname__)
-            parts = schema_id.rsplit('.', 1)
-            parts[0] = hashlib.md5(parts[0].encode()).hexdigest()[:8]
-            schema_id = '.'.join(parts)
+            if not schema_id:
+                schema_id = '%s.%s' % (self.__class__.__module__, self.__class__.__qualname__)
+                parts = schema_id.rsplit('.', 1)
+                parts[0] = hashlib.md5(parts[0].encode()).hexdigest()[:8]
+                schema_id = '.'.join(parts)
 
             # 注册到 openapi components
             _spec.Collection(spec_id).schemas[schema_id] = spec

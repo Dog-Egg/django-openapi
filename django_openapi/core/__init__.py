@@ -7,6 +7,7 @@ import os
 import re
 import sys
 import typing
+import uuid
 from collections import defaultdict
 from http import HTTPStatus
 
@@ -25,7 +26,7 @@ from django_openapi.permissions import BasePermission
 from django_openapi.schema import schemas
 from django_openapi.schema.exceptions import ValidationError
 from django_openapi.schema.schemas import BaseSchema
-from django_openapi.utils.functional import make_schema, make_instance
+from django_openapi.utils.functional import make_schema, make_instance, make_model_schema
 from django_openapi.spec import utils as _spec, Tag
 
 
@@ -120,6 +121,10 @@ class OpenAPI:
         spec = self.get_spec(request)
         json_dumps_params = dict(indent=2, ensure_ascii=False) if settings.DEBUG else {}
         return JsonResponse(spec, json_dumps_params=json_dumps_params)
+
+    def register_schema(self, schema):
+        schema = make_model_schema(schema)
+        schema.to_spec(self.id, need_required_field=True, schema_id=uuid.uuid4().hex)
 
 
 class Resource:

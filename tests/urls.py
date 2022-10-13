@@ -5,6 +5,7 @@ import tests.security
 import tests.forbidden
 import tests.response
 import tests.specification
+import tests.register_schemas
 from django_openapi.docs import swagger_ui
 from .utils import TestOpenAPI
 
@@ -18,6 +19,7 @@ docs_view = swagger_ui(
     tests.response.openapi,
     tests.specification.openapi,
     tests.forbidden.openapi,
+    tests.register_schemas.openapi,
     load_local_static=True
 )
 
@@ -26,6 +28,7 @@ urlpatterns = [
     path('', include(openapi.urls)),
     path('', include(tests.forbidden.openapi.urls)),
     path('', include(tests.response.openapi.urls)),
+    path('', include(tests.register_schemas.openapi.urls)),
     path('spec/', include(tests.specification.openapi.urls)),
     path('security/', include(tests.security.openapi.urls)),
     path('api/', include(tests.restful.openapi.urls)),
