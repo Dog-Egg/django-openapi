@@ -72,13 +72,14 @@ class OpenAPI:
         return hashlib.md5(rv.encode()).hexdigest()
 
     def add_resource(self, resource):
-        resource = copy.copy(resource)
-
         assert resource.root is None
         resource.root = self
 
         self._resources.append(resource)
-        self._append_url(resource.django_path, resource.as_view())
+
+        view = resource.as_view()
+        resource.view = view
+        self._append_url(resource.django_path, view)
 
     def _append_url(self, path, *args, **kwargs):
         path = path.lstrip('/')
@@ -138,6 +139,7 @@ class Resource:
         "options",
         "trace",
     ]
+    view: typing.Callable
 
     def __init__(
             self,

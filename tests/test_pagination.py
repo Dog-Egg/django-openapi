@@ -2,6 +2,7 @@
 from django_openapi import Operation
 from django_openapi.schema import schemas
 from django_openapi.pagination import PageNumberPaginator
+from django_openapi.urls import reverse
 from tests.utils import TestResource, ResourceView, itemgetter
 
 ALL_BOOKS = [dict(id=i, title='书名') for i in range(1, 150)]
@@ -40,7 +41,7 @@ class ResourceA(ResourceView):
 
 
 def test_pagination(client, get_oas):
-    resp = client.get(ResourceA.reverse())
+    resp = client.get(reverse(ResourceA))
     data = resp.json()
     assert len(data['results']) == 20
     assert data['page'] == 1
@@ -57,7 +58,7 @@ def test_pagination(client, get_oas):
 
 def test_fixed_page_size(client, get_oas):
     """固定 page_size"""
-    resp = client.post(f'{ResourceA.reverse()}?page=5')
+    resp = client.post(f'{reverse(ResourceA)}?page=5')
     data = resp.json()
     assert len(data['results']) == 29
     assert data['page_size'] == 30
@@ -66,13 +67,13 @@ def test_fixed_page_size(client, get_oas):
     assert itemgetter(get_oas(), oas_response_properties_path('post'))['page_size'] == {
         'type': 'integer'
     }
-    parameters = itemgetter(get_oas(), f'paths.{ResourceA.reverse()}.post.parameters')
+    parameters = itemgetter(get_oas(), f'paths.{reverse(ResourceA)}.post.parameters')
     assert len(parameters) == 1
     assert parameters[0]['name'] == 'page'  # 固定 page_size 后，请求参数只有page
 
 
 def test_field_mapping(get_oas):
-    parameters = itemgetter(get_oas(), f'paths.{ResourceA.reverse()}.put.parameters')
+    parameters = itemgetter(get_oas(), f'paths.{reverse(ResourceA)}.put.parameters')
     assert parameters[0]['name'] == 'p'
     assert parameters[1]['name'] == 'pageSize'
 
@@ -83,6 +84,6 @@ def test_field_mapping(get_oas):
 
 def oas_response_properties_path(method):
     return [
-        'paths', ResourceA.reverse(), method, 'responses', '200', 'content', 'application/json',
+        'paths', reverse(ResourceA), method, 'responses', '200', 'content', 'application/json',
         'schema', 'properties'
     ]

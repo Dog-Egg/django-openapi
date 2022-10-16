@@ -43,11 +43,6 @@ class _TestResource(Resource):
         kwargs.setdefault('tags', [_build_tag()])
         super().__init__(path, **kwargs)
 
-    def reverse(self, **kwargs):
-        if kwargs:
-            return self.__path.format(**kwargs)
-        return self.__path
-
 
 # noinspection PyPep8Naming
 def TestResource(*args, **kwargs) -> _TestResource:

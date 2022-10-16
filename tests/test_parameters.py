@@ -6,6 +6,7 @@ from django_openapi import Operation
 from django_openapi.exceptions import NotFound
 from django_openapi.parameters import Query, Header, Cookie
 from django_openapi.schema import schemas
+from django_openapi.urls import reverse
 from tests.utils import TestResource, ResourceView
 
 
@@ -37,17 +38,17 @@ class PathParameter2(ResourceView):
 
 
 def test_path_parameter(client):
-    response = client.get(PathParameter1.reverse(id=8))
+    response = client.get(reverse(PathParameter1, kwargs=dict(id=8)))
     assert response.json() == {'id': 8}
 
 
 def test_path_parameter_404(client):
-    assert client.get(PathParameter1.reverse(id=-1)).status_code == 404
-    assert client.get(PathParameter1.reverse(id='a')).status_code == 404
+    assert client.get(reverse(PathParameter1, kwargs=dict(id=-1))).status_code == 404
+    assert client.get(reverse(PathParameter1, kwargs=dict(id='a'))).status_code == 404
 
 
 def test_path_parameter_with_path_schema(client):
-    response = client.get(PathParameter2.reverse(path='xx/xxx'))
+    response = client.get(reverse(PathParameter2, kwargs=dict(path='xx/xxx')))
     assert response.json() == {'path': 'xx/xxx'}
 
 
@@ -83,26 +84,26 @@ class Parameter1(ResourceView):
 
 
 def test_query_parameter(client):
-    response = client.get(Parameter1.reverse(), data={'a': 1, 'b': 2})
+    response = client.get(reverse(Parameter1), data={'a': 1, 'b': 2})
     assert response.json() == {'a': '1', 'b': 2}
 
 
 def test_query_parameter_400(client):
-    response = client.get(Parameter1.reverse())
+    response = client.get(reverse(Parameter1))
     assert response.status_code == 400
     assert response.json() == {'errors': {'b': ['这个字段是必需的']}}
 
 
 def test_multi_query(client):
-    response = client.post(f'{Parameter1.reverse()}?a=1&b=2')
+    response = client.post(f'{reverse(Parameter1)}?a=1&b=2')
     assert response.json() == {'q1': {'a': 1}, 'q2': {'b': '2'}}
 
 
 def test_header_parameter(client):
-    response = client.put(Parameter1.reverse(), HTTP_H='h1')
+    response = client.put(reverse(Parameter1), HTTP_H='h1')
     assert response.json() == {'h': 'h1'}
 
 
 def test_cookie_parameter(client):
     client.cookies = SimpleCookie({'c': 'c2'})
-    assert client.patch(Parameter1.reverse()).json() == {'c': 'c2'}
+    assert client.patch(reverse(Parameter1)).json() == {'c': 'c2'}

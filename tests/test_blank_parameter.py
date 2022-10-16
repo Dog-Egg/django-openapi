@@ -2,6 +2,7 @@
 from django_openapi import Operation
 from django_openapi.parameters import Query
 from django_openapi.schema import schemas
+from django_openapi.urls import reverse
 from tests.utils import TestResource, ResourceView, itemgetter
 
 
@@ -34,47 +35,47 @@ class ResourceA(ResourceView):
 
 def test_required_and_allow_blank(client, get_oas):
     """必要且允许为空"""
-    response = client.get(f'{ResourceA.reverse()}')
+    response = client.get(f'{reverse(ResourceA)}')
     assert response.status_code == 400
     assert response.json() == dict(errors=dict(a=['这个字段是必需的']))
 
-    response = client.get(f'{ResourceA.reverse()}?a=')
+    response = client.get(f'{reverse(ResourceA)}?a=')
     assert response.status_code == 200
     assert response.json() == {'a': ''}
 
-    assert itemgetter(get_oas(), ['paths', ResourceA.reverse(), 'get', 'parameters', 0, 'allowEmptyValue']) is True
+    assert itemgetter(get_oas(), ['paths', reverse(ResourceA), 'get', 'parameters', 0, 'allowEmptyValue']) is True
 
 
 def test_not_required_and_allow_blank(client):
     """非必要且允许为空"""
-    response = client.post(f'{ResourceA.reverse()}')
+    response = client.post(f'{reverse(ResourceA)}')
     assert response.json() == {}
 
-    response = client.post(f'{ResourceA.reverse()}?a=')
+    response = client.post(f'{reverse(ResourceA)}?a=')
     assert response.json() == {'a': ''}
 
 
 def test_not_required_and_not_allow_blank(client, get_oas):
     """非必要且不允许为空"""
-    response = client.put(f'{ResourceA.reverse()}')
+    response = client.put(f'{reverse(ResourceA)}')
     assert response.json() == {}
 
-    response = client.put(f'{ResourceA.reverse()}?a=')
+    response = client.put(f'{reverse(ResourceA)}?a=')
     assert response.json() == {}
 
-    response = client.put(f'{ResourceA.reverse()}?a= ')
+    response = client.put(f'{reverse(ResourceA)}?a= ')
     assert response.json() == {'errors': {'a': ['cannot be a whitespace string']}}
 
-    assert 'allowEmptyValue' not in itemgetter(get_oas(), ['paths', ResourceA.reverse(), 'put', 'parameters', 0])
+    assert 'allowEmptyValue' not in itemgetter(get_oas(), ['paths', reverse(ResourceA), 'put', 'parameters', 0])
 
 
 def test_required_and_not_allow_blank(client):
     """必要且不允许为空"""
-    resp = client.patch(f'{ResourceA.reverse()}')
+    resp = client.patch(f'{reverse(ResourceA)}')
     assert resp.json() == {'errors': {'a': ['这个字段是必需的']}}
 
-    response = client.patch(f'{ResourceA.reverse()}?a=')
+    response = client.patch(f'{reverse(ResourceA)}?a=')
     assert response.json() == {'errors': {'a': ['字段不能为空']}}
 
-    response = client.patch(f'{ResourceA.reverse()}?a= ')
+    response = client.patch(f'{reverse(ResourceA)}?a= ')
     assert response.json() == {'errors': {'a': ['cannot be a whitespace string']}}

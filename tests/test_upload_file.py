@@ -8,6 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django_openapi import model2schema, Operation
 from django_openapi.parameters import Body
 from django_openapi.schema import schemas
+from django_openapi.urls import reverse
 from tests.utils import TestResource, ResourceView, itemgetter
 
 
@@ -35,7 +36,7 @@ class Res(ResourceView):
 @pytest.mark.django_db
 def test_upload_file(client):
     resp = client.post(
-        Res.reverse(),
+        reverse(Res),
         dict(file=SimpleUploadedFile("test.mp4", b"", content_type="video/mp4"))
     )
     assert resp.status_code == 200

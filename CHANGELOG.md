@@ -1,7 +1,8 @@
-## 0.1a3 (dev)
+## 0.1a3
 
 - 新增：被 `Resource` 装饰的类可以不定义 `__init__` 方法
 - 新增：schema Model 可单独注册，作为文档的一部分
+- 新增：url `reverse` 函数
 - 新增：schema String 参数 `whitespace`
 - 修改：`allow_blank` 仅判断空字符串，而不是判断空白字符串
 

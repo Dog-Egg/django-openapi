@@ -6,6 +6,7 @@ import pytest
 
 from django_openapi import Operation, permissions
 from django_openapi.permissions import BasePermission
+from django_openapi.urls import reverse
 from tests.utils import TestResource, ResourceView, itemgetter
 
 
@@ -33,15 +34,15 @@ class ResourceA(ResourceView):
 def test_request(client, django_user_model, get_oas):
     admin = django_user_model.objects.create_user(username='user', is_staff=True)
 
-    assert client.get(ResourceA.reverse()).status_code == 401
-    assert client.post(ResourceA.reverse()).status_code == 401
+    assert client.get(reverse(ResourceA)).status_code == 401
+    assert client.post(reverse(ResourceA)).status_code == 401
 
     client.force_login(admin)
-    assert client.post(ResourceA.reverse()).status_code == 200
+    assert client.post(reverse(ResourceA)).status_code == 200
 
-    assert client.delete(ResourceA.reverse()).status_code == 403
+    assert client.delete(reverse(ResourceA)).status_code == 403
 
-    assert itemgetter(get_oas(), ['paths', ResourceA.reverse(), 'get', 'security']) == [{'_$unknown$_': []}]
+    assert itemgetter(get_oas(), ['paths', reverse(ResourceA), 'get', 'security']) == [{'_$unknown$_': []}]
 
 
 def test_and_operation():

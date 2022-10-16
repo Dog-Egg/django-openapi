@@ -2,6 +2,7 @@ from django_openapi import Operation
 from django_openapi.exceptions import NotFound
 from django_openapi.parameters import Query
 from django_openapi.schema import schemas
+from django_openapi.urls import reverse
 from .exceptions import MyError
 from tests.utils import TestResource, ResourceView
 
@@ -33,18 +34,18 @@ class API(ResourceView):
 
 
 def test_custom_404(client):
-    response = client.put(API.reverse())
+    response = client.put(reverse(API))
     assert response.status_code == 200
     assert response.json() == {'code': 404}
 
 
 def test_custom_request_args_error(client):
-    response = client.post(API.reverse())
+    response = client.post(reverse(API))
     assert response.status_code == 422
     assert response.json() == {'code': 400, 'errors': {'a': ['这个字段是必需的']}}
 
 
 def test_custom_error(client):
-    response = client.delete(API.reverse())
+    response = client.delete(reverse(API))
     assert response.status_code == 200
     assert response.json() == {'code': 1, 'message': 'error'}

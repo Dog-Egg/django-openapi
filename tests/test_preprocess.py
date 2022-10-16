@@ -3,6 +3,7 @@ import json
 
 from django_openapi import Operation
 from django_openapi.schema import schemas
+from django_openapi.urls import reverse
 from tests.utils import TestResource, ResourceView
 
 
@@ -28,7 +29,7 @@ class Res(ResourceView):
 
 
 def test_json_string(client):
-    assert client.get(Res.reverse()).json() == {
+    assert client.get(reverse(Res)).json() == {
         'array': ['a', 0, True, None],
         'object': {'a': 1},
     }
