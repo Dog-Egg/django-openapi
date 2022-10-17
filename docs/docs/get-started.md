@@ -1,12 +1,22 @@
+---
+sidebar_position: 2
+---
+
 # 开始
 
-假设你已经通过 [Django 教程](https://docs.djangoproject.com/zh-hans/4.0/intro/tutorial01/) 创建了一个 polls 应用
+## 安装
 
-## 设置
+由于当前还在测试阶段，所以没有上传到 pypi，这里提供从 git 仓库的安装方法。
 
-将 django-openapi 添加到 `INSTALLED_APPS` 中
+```bash
+pip install git+https://github.com/Dog-Egg/django-openapi.git@0.1a3
+```
 
-```python title="mysite/settings.py"
+## 添加到 Django 项目中
+
+将 django_openapi 添加到 `INSTALLED_APPS` 中
+
+```python title="settings.py"
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -15,50 +25,39 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # highlight-next-line
-    'openapi'
+    'django_openapi',
+    # ...
 ]
 ```
 
-## 创建一个 Resource
+## 使用
 
-`QuestionAPI` 只是一个普通的类，需要用 `@Resource` 标记为一个请求资源，`get` 方法负责处理 GET 请求
+写一个最简单的例子，我们直接在项目目录的 `urls.py` 文件内编写代码。
 
-```python title="polls/views.py"
-from openapi import Resource
-
-
-@Resource('/questions')
-class QuestionAPI:
-    def get(self, request):
-        return 'ok'
-```
-
-## 添加到 Django 路由
-
-```python title="polls/urls.py"
+```python
 from django.urls import path, include
+from django_openapi import Resource, OpenAPI
+from django_openapi.docs import swagger_ui
 
-from openapi import OpenAPI
-from . import views
 
-# highlight-start
-openapi = OpenAPI(__name__, enable_swagger_ui=True)
-openapi.find_resources(views)
-# highlight-end
+@Resource('/path')
+class API:
+    def get(self):
+        pass
+
+
+openapi = OpenAPI()
+openapi.add_resource(API)
 
 urlpatterns = [
-    path('', include(openapi.urls))
+    # ...
+    path('api/', include(openapi.urls)),  # 请注意这里需要使用 `include` 函数
+    path('docs/', swagger_ui(openapi)),
 ]
 ```
 
-## 查看 API 文档
+### 查看 API 文档
 
-运行项目然后访问 http://127.0.0.1:8000/polls/swagger-ui
+运行项目然后访问 http://127.0.0.1:8000/docs/
 
-```bash
-python manage.py runserver
-```
-
-<BrowserWindow url={"http://127.0.0.1:8000/polls/swagger-ui"}>
-<img src={require("./screenshots/get-started-1.png").default} />
-</BrowserWindow>
+<SwaggerUI spec="开始" height={430}></SwaggerUI>

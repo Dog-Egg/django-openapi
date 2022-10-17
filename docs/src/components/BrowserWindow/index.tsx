@@ -12,8 +12,8 @@ import styles from './styles.module.css';
 
 interface Props {
     children: ReactNode;
-    minHeight: number;
-    url: string;
+    url?: string;
+    minHeight?: number
 }
 
 export default function BrowserWindow({children, minHeight, url = 'http://localhost:3000'}: Props): JSX.Element {

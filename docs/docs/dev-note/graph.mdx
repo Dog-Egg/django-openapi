@@ -7,7 +7,7 @@ graph TD
     input(input)
     isnull{is null?}
     nullable{nullable?}
-    error(raise DeserializationError)
+    error(raise ValidationError)
     validate[validations]
     deserialize[_deserialize]
     output(output)
