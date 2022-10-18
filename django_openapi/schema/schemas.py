@@ -337,6 +337,9 @@ class Model(BaseSchema, metaclass=_ModelMeta):
                 parts[0] = hashlib.md5(parts[0].encode()).hexdigest()[:8]
                 schema_id = '.'.join(parts)
 
+                # 没有提供 schema_id 在注册到 components 之前清除掉 required
+                spec.pop('required')
+
             # 注册到 openapi components
             _spec.Collection(spec_id).schemas[schema_id] = spec
 
