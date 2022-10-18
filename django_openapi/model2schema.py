@@ -74,7 +74,7 @@ class Convertor:
         if contents:
             if len(contents) == 1:
                 return contents[0]
-            return '%s\n\n_%s_' % contents
+            return '%s\n\n%s' % contents
 
     def get_validators(self, validators):
         return validators
