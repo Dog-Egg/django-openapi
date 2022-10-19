@@ -3,7 +3,6 @@ from django.http import JsonResponse
 from django_openapi import Respond
 from django_openapi.exceptions import RequestArgsError, NotFound
 from tests.utils import TestOpenAPI
-from . import tests as views
 from .exceptions import MyError
 
 
@@ -28,12 +27,12 @@ openapi = TestOpenAPI(
     respond=MyRespond,
     description="""
     通过 respond 可以修改响应风格，如：
-    
+
     `{ "code": 0, "data": <response>, "message": "ok" }`
-    
+
     `{ "code": 1, "message": "error"}`
-    
+
     同时也能自定义异常处理
     """
 )
-openapi.find_resources(views)
+openapi.find_resources(__package__)

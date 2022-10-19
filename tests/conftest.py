@@ -13,11 +13,7 @@ def to_spec():
 
 @pytest.fixture
 def get_oas(client):
-    def fn(openapi: OpenAPI = None):
-        from .urls import openapi as default
-
-        if openapi is None:
-            openapi = default
+    def fn(openapi: OpenAPI):
         response = client.get(reverse(openapi.spec_view))
         return response.json()
 

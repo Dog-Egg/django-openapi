@@ -3,7 +3,7 @@ import inspect
 import os
 import sys
 from importlib import import_module
-from pkgutil import iter_modules
+from pkgutil import walk_packages
 
 from django_openapi import Resource, OpenAPI
 from django_openapi.spec import Tag, ExternalDocs
@@ -57,28 +57,6 @@ class ResourceView:
         self.pathargs = kwargs
 
 
-def walk_package(module, walk_subpackage=False):
-    yield module
-    for info in iter_modules(module.__path__):
-        sub_name = module.__name__ + '.' + info.name
-        sub_module = import_module(sub_name)
-        if walk_subpackage and info.ispkg:
-            yield from walk_package(sub_module, walk_subpackage)
-        else:
-            yield sub_module
-
-
-def find_objects(module, match, walk_subpackage=False):
-    if hasattr(module, '__path__'):
-        modules = walk_package(module, walk_subpackage)
-    else:
-        modules = [module]
-    for module in modules:
-        for o in vars(module).values():
-            if match(o):
-                yield o
-
-
 def itemgetter(o, path):
     if isinstance(path, str):
         path = path.split('.')
@@ -89,6 +67,10 @@ def itemgetter(o, path):
 
 
 class TestOpenAPI(OpenAPI):
-    def find_resources(self, module):
-        for o in find_objects(module, lambda x: isinstance(x, Resource)):
-            self.add_resource(o)
+    def find_resources(self, package):
+        package = import_module(package)
+        for info in walk_packages(package.__path__):
+            module = import_module(package.__name__ + '.' + info.name)
+            for v in vars(module).values():
+                if isinstance(v, Resource):
+                    self.add_resource(v)

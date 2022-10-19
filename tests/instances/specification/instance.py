@@ -16,3 +16,5 @@ class MyOpenAPI(OpenAPI):
 openapi = MyOpenAPI(title='Specification Testing')
 
 openapi.add_resource(views.A)
+
+__prefix__ = 'spec'

@@ -1,35 +1,46 @@
+import importlib
+from pkgutil import iter_modules
+
 from django.urls import path, include
 
-import tests.restful
-import tests.security
-import tests.forbidden
-import tests.response
-import tests.specification
-import tests.register_schemas
+from django_openapi import OpenAPI
 from django_openapi.docs import swagger_ui
-from .utils import TestOpenAPI
 
-openapi = TestOpenAPI(title='DjangoOpenAPI Tests')
-openapi.find_resources(tests)
 
-docs_view = swagger_ui(
-    openapi,
-    tests.restful.openapi,
-    tests.security.openapi,
-    tests.response.openapi,
-    tests.specification.openapi,
-    tests.forbidden.openapi,
-    tests.register_schemas.openapi,
-    load_local_static=True
-)
+def find_openapi_instances():
+    from tests import instances
+    rv = []
+    for info in iter_modules(instances.__path__):
+        if not info.ispkg:
+            continue
 
-urlpatterns = [
-    path('', docs_view),
-    path('', include(openapi.urls)),
-    path('', include(tests.forbidden.openapi.urls)),
-    path('response/', include(tests.response.openapi.urls)),
-    path('schema/', include(tests.register_schemas.openapi.urls)),
-    path('spec/', include(tests.specification.openapi.urls)),
-    path('security/', include(tests.security.openapi.urls)),
-    path('api/', include(tests.restful.openapi.urls)),
-]
+        module = importlib.import_module('%s.%s.instance' % (instances.__name__, info.name))
+
+        prefix = getattr(module, '__prefix__', info.name)
+        if prefix:
+            prefix += '/'
+
+        for v in vars(module).values():
+            if isinstance(v, OpenAPI):
+                rv.append((prefix, v))
+                break
+        else:
+            raise RuntimeError(f'没有在{module}中发现 OpenAPI 实例')
+    return rv
+
+
+instances = find_openapi_instances()
+
+
+def build_urls():
+    urls = [
+        path('', swagger_ui(*dict(instances).values(), load_local_static=True), name='index'),
+    ]
+    for prefix, instance in instances:
+        urls.append(
+            path(prefix, include(instance.urls)),
+        )
+    return urls
+
+
+urlpatterns = build_urls()

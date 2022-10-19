@@ -21,12 +21,11 @@ def test_with_request(client):
     assert resp.json() == {'data': None}
 
 
-def test_oas1(get_oas):
-    oas = get_oas()
+def test_oas1(oas):
     assert itemgetter(oas, ['paths', reverse(API), 'post', 'requestBody', 'content', 'application/json', 'schema',
                             'properties', 'data', 'allOf']) == [
                {
-                   "$ref": "#/components/schemas/5df32607.NullableSchema"
+                   "$ref": "#/components/schemas/09c8b2a5.NullableSchema"
                },
                {
                    "nullable": True
@@ -34,12 +33,11 @@ def test_oas1(get_oas):
            ]
 
 
-def test_oas2(get_oas):
-    oas = get_oas()
+def test_oas2(oas):
     assert itemgetter(oas, ['paths', reverse(API), 'post', 'responses', '200', 'content', 'application/json', 'schema',
                             'properties', 'data', 'allOf']) == [
                {
-                   "$ref": "#/components/schemas/5df32607.NullableSchema"
+                   "$ref": "#/components/schemas/09c8b2a5.NullableSchema"
                },
                {
                    "nullable": True
@@ -47,6 +45,5 @@ def test_oas2(get_oas):
            ]
 
 
-def test_oas3(get_oas):
-    oas = get_oas()
-    assert 'nullable' not in itemgetter(oas, ['components', 'schemas', '5df32607.NullableSchema'])
+def test_oas3(oas):
+    assert 'nullable' not in itemgetter(oas, ['components', 'schemas', '09c8b2a5.NullableSchema'])

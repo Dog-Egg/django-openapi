@@ -33,7 +33,7 @@ class ResourceA(ResourceView):
         return q
 
 
-def test_required_and_allow_blank(client, get_oas):
+def test_required_and_allow_blank(client, oas):
     """必要且允许为空"""
     response = client.get(f'{reverse(ResourceA)}')
     assert response.status_code == 400
@@ -43,7 +43,7 @@ def test_required_and_allow_blank(client, get_oas):
     assert response.status_code == 200
     assert response.json() == {'a': ''}
 
-    assert itemgetter(get_oas(), ['paths', reverse(ResourceA), 'get', 'parameters', 0, 'allowEmptyValue']) is True
+    assert itemgetter(oas, ['paths', reverse(ResourceA), 'get', 'parameters', 0, 'allowEmptyValue']) is True
 
 
 def test_not_required_and_allow_blank(client):
@@ -55,7 +55,7 @@ def test_not_required_and_allow_blank(client):
     assert response.json() == {'a': ''}
 
 
-def test_not_required_and_not_allow_blank(client, get_oas):
+def test_not_required_and_not_allow_blank(client, oas):
     """非必要且不允许为空"""
     response = client.put(f'{reverse(ResourceA)}')
     assert response.json() == {}
@@ -66,7 +66,7 @@ def test_not_required_and_not_allow_blank(client, get_oas):
     response = client.put(f'{reverse(ResourceA)}?a= ')
     assert response.json() == {'errors': {'a': ['cannot be a whitespace string']}}
 
-    assert 'allowEmptyValue' not in itemgetter(get_oas(), ['paths', reverse(ResourceA), 'put', 'parameters', 0])
+    assert 'allowEmptyValue' not in itemgetter(oas, ['paths', reverse(ResourceA), 'put', 'parameters', 0])
 
 
 def test_required_and_not_allow_blank(client):

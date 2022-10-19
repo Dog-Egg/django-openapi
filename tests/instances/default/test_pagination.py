@@ -40,7 +40,7 @@ class ResourceA(ResourceView):
         return paginator.paginate(ALL_BOOKS)
 
 
-def test_pagination(client, get_oas):
+def test_pagination(client, oas):
     resp = client.get(reverse(ResourceA))
     data = resp.json()
     assert len(data['results']) == 20
@@ -48,7 +48,7 @@ def test_pagination(client, get_oas):
     assert data['page_size'] == 20
     assert data['count'] == 149
 
-    assert itemgetter(get_oas(), oas_response_properties_path('get'))['page_size'] == {
+    assert itemgetter(oas, oas_response_properties_path('get'))['page_size'] == {
         'type': 'integer',
         'default': 20,
         'maximum': 1000,
@@ -56,7 +56,7 @@ def test_pagination(client, get_oas):
     }
 
 
-def test_fixed_page_size(client, get_oas):
+def test_fixed_page_size(client, oas):
     """固定 page_size"""
     resp = client.post(f'{reverse(ResourceA)}?page=5')
     data = resp.json()
@@ -64,20 +64,20 @@ def test_fixed_page_size(client, get_oas):
     assert data['page_size'] == 30
 
     # 固定 page_size
-    assert itemgetter(get_oas(), oas_response_properties_path('post'))['page_size'] == {
+    assert itemgetter(oas, oas_response_properties_path('post'))['page_size'] == {
         'type': 'integer'
     }
-    parameters = itemgetter(get_oas(), f'paths.{reverse(ResourceA)}.post.parameters')
+    parameters = itemgetter(oas, f'paths.{reverse(ResourceA)}.post.parameters')
     assert len(parameters) == 1
     assert parameters[0]['name'] == 'page'  # 固定 page_size 后，请求参数只有page
 
 
-def test_field_mapping(get_oas):
-    parameters = itemgetter(get_oas(), f'paths.{reverse(ResourceA)}.put.parameters')
+def test_field_mapping(oas):
+    parameters = itemgetter(oas, f'paths.{reverse(ResourceA)}.put.parameters')
     assert parameters[0]['name'] == 'p'
     assert parameters[1]['name'] == 'pageSize'
 
-    resp_props = itemgetter(get_oas(), oas_response_properties_path('put'))
+    resp_props = itemgetter(oas, oas_response_properties_path('put'))
     assert resp_props.__len__() == 4
     assert set(resp_props.keys()) == {'p', 'pageSize', 'total', 'books'}
 

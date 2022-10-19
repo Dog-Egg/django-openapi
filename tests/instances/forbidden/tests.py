@@ -1,6 +1,6 @@
 from django.urls import reverse
 
-from . import openapi
+from .instance import openapi
 
 
 def test_apispec_permission(client):

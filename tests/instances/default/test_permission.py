@@ -31,7 +31,7 @@ class ResourceA(ResourceView):
         pass
 
 
-def test_request(client, django_user_model, get_oas):
+def test_request(client, django_user_model, oas):
     admin = django_user_model.objects.create_user(username='user', is_staff=True)
 
     assert client.get(reverse(ResourceA)).status_code == 401
@@ -42,7 +42,7 @@ def test_request(client, django_user_model, get_oas):
 
     assert client.delete(reverse(ResourceA)).status_code == 403
 
-    assert itemgetter(get_oas(), ['paths', reverse(ResourceA), 'get', 'security']) == [{'_$unknown$_': []}]
+    assert itemgetter(oas, ['paths', reverse(ResourceA), 'get', 'security']) == [{'_$unknown$_': []}]
 
 
 def test_and_operation():

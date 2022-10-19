@@ -47,8 +47,8 @@ def test_upload_file(client):
         assert data['file'].startswith('/')
 
 
-def test_oas(get_oas):
+def test_oas(oas):
     # FileSchema 只能是只读
-    assert itemgetter(get_oas(),
-                      ['components', 'schemas', '30689379.UploadedFileSchema', 'properties', 'file',
+    assert itemgetter(oas,
+                      ['components', 'schemas', '5897d14e.UploadedFileSchema', 'properties', 'file',
                        'readOnly']) is True

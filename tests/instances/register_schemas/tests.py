@@ -1,4 +1,3 @@
-from . import openapi
 from tests.utils import itemgetter
 
 
@@ -8,9 +7,8 @@ def find(schemas, fn):
             yield s[1]
 
 
-def test_oas(get_oas):
-    spec = get_oas(openapi)
-    schemas = list(itemgetter(spec, 'components.schemas').items())
+def test_oas(oas):
+    schemas = list(itemgetter(oas, 'components.schemas').items())
 
     assert len(schemas) == 3
 

@@ -1,5 +1,4 @@
 from tests.utils import TestOpenAPI
-from . import views
 
 openapi = TestOpenAPI(
     title='安全表述',
@@ -20,4 +19,4 @@ openapi = TestOpenAPI(
         }
     }
 )
-openapi.find_resources(views)
+openapi.find_resources(__package__)
