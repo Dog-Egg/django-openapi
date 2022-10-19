@@ -316,12 +316,11 @@ class Model(BaseSchema, metaclass=_ModelMeta):
             field: BaseSchema
             properties[field.alias] = field.to_spec(spec_id)
 
-        required = self.__get_required_list() if need_required_field else None
         __doc__ = _spec.clean_commonmark(self.__class__.__doc__)
 
         spec.update(
             properties=properties,
-            required=required,
+            required=self.__get_required_list() if need_required_field else None,
             description=self.description or __doc__  # 没有被注册为组件优先使用 description
         )
 
@@ -331,23 +330,26 @@ class Model(BaseSchema, metaclass=_ModelMeta):
                 description=__doc__  # 注册为组件只使用 __doc__，因为 description 是动态的
             )
 
+            # 需要去使用复合的字段
+            composite = _spec.clean({k: spec[k] for k in ['required', 'nullable']})
+
             if not schema_id:
                 schema_id = '%s.%s' % (self.__class__.__module__, self.__class__.__qualname__)
                 parts = schema_id.rsplit('.', 1)
                 parts[0] = hashlib.md5(parts[0].encode()).hexdigest()[:8]
                 schema_id = '.'.join(parts)
 
-                # 没有提供 schema_id 在注册到 components 之前清除掉 required
-                spec.pop('required')
+                # 没有提供 schema_id 在注册到 components 之前清除复合字段
+                composite and [spec.pop(k) for k in composite]
 
             # 注册到 openapi components
             _spec.Collection(spec_id).schemas[schema_id] = spec
 
             # 返回 Schema 引用
             ref = {'$ref': '#/components/schemas/%s' % schema_id}
-            if required:
-                # required 利用 allOf 组合
-                return dict(allOf=[ref, {'required': required}])
+            if composite:
+                # 利用 allOf 组合
+                return dict(allOf=[ref, composite])
             return ref
 
         return spec
