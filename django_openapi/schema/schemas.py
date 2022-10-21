@@ -71,6 +71,7 @@ class BaseSchema(metaclass=_SchemaMeta):
             nullable: bool = False,
             default=UNDEFINED,  # only deserialize
             serialize_preprocess: typing.Callable[[typing.Any], typing.Any] = None,
+            deserialize_postprocess: typing.Callable[[typing.Any], typing.Any] = None,
             validators: typing.List[typing.Callable[[typing.Any], None]] = None,  # only deserialize
             fallback: typing.Callable[[typing.Any], typing.Any] = None,  # only serialize
             read_only=False,
@@ -88,6 +89,7 @@ class BaseSchema(metaclass=_SchemaMeta):
         self.nullable = nullable
         self.default = default
         self.serialize_preprocess = serialize_preprocess
+        self.deserialize_postprocess = deserialize_postprocess
         self._validators: typing.List[typing.Callable[[typing.Any], None]] = validators or []
         self.fallback = fallback
         self.read_only = read_only
@@ -113,15 +115,19 @@ class BaseSchema(metaclass=_SchemaMeta):
                 raise ValidationError('The value cannot be null')
 
         obj = self._deserialize(obj)
+
         error = ValidationError()
         for validator in itertools.chain(self._metadata['default_validators'], self._validators):
             try:
                 validator(obj)
             except ValidationError as exc:
                 error.concat(exc)
-
         if error.nonempty:
             raise error
+
+        if self.deserialize_postprocess:
+            obj = self.deserialize_postprocess(obj)
+
         return obj
 
     def _deserialize(self, obj):
@@ -278,7 +284,8 @@ class Model(BaseSchema, metaclass=_ModelMeta):
             try:
                 values[field.alias] = field.serialize(value)
             except Exception as e:
-                raise type(e)('%s field %r: %s' % (self, field.attr, e)).with_traceback(e.__traceback__)
+                raise ValueError(
+                    '%s field %r serialization error: %s' % (self.__class__.__name__, field.attr, repr(e))) from e
         return values
 
     @classmethod

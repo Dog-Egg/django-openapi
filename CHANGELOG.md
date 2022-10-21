@@ -1,5 +1,6 @@
 ## 0.1a4
 
+- 新增：schema BaseSchema 参数 `deserialize_postprocess`
 - 新增：schema Datetime 参数 `with_timezone`
 - 修复一些BUG
 

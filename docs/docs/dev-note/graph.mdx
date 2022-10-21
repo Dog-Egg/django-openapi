@@ -19,7 +19,8 @@ graph TD
     nullable --> |no|error
     deserialize --> |ok|validate
     deserialize --> |error|error
-    validate --> |ok|output
+    validate -.-> |ok|deserialize_postprocess
+    deserialize_postprocess -.-> output
     validate --> |error|error
 ```
 
