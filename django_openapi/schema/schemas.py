@@ -7,6 +7,8 @@ import typing
 from collections.abc import Mapping, Iterable
 
 from dateutil.parser import isoparse
+from django.conf import settings
+from django.utils import timezone
 
 from django_openapi.parameters.style import Style
 from django_openapi.schema import validators as _validators
@@ -152,7 +154,7 @@ class BaseSchema(metaclass=_SchemaMeta):
         return dict(
             type=self._metadata['data_type'],
             default=None if self.default is UNDEFINED else self.default,
-            example=self.example,
+            example=self.example() if callable(self.example) else self.example,
             description=self.description,
             readOnly=_spec.default_as_none(self.read_only, False),
             writeOnly=_spec.default_as_none(self.write_only, False),
@@ -608,11 +610,24 @@ class Datetime(Date):
         data_type = 'string'
         data_format = 'date-time'
 
+    def __init__(self, *args, with_timezone: typing.Optional[bool] = UNDEFINED, **kwargs):
+        self.with_timezone: typing.Optional[bool] = settings.USE_TZ if with_timezone is UNDEFINED else with_timezone
+        if self.with_timezone is False:
+            kwargs.setdefault('example', datetime.datetime.now)
+        super().__init__(*args, **kwargs)
+
     def _deserialize(self, date_string):
         try:
-            return self._strptime(date_string)
+            dt = self._strptime(date_string)
         except (ValueError, TypeError):
             raise ValidationError('Not a valid datetime string.')
+        else:
+            if self.with_timezone is not None:
+                if not self.with_timezone and timezone.is_aware(dt):
+                    raise ValidationError('not support timezone-aware datetime.')
+                if self.with_timezone and timezone.is_naive(dt):
+                    raise ValidationError('not support timezone-naive datetime.')
+            return dt
 
 
 class Any(BaseSchema):

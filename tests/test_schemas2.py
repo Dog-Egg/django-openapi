@@ -3,6 +3,7 @@ import datetime
 from decimal import Decimal
 
 import pytest
+from pytz import UTC
 
 from django_openapi.parameters import Query, Body
 from django_openapi.schema import schemas
@@ -138,9 +139,21 @@ def test_serialize_and_deserialize():
     deserialize_ok(schemas.Datetime, '2022-05-01', datetime.datetime(2022, 5, 1))
     deserialize_ok(schemas.Datetime, '20220501', datetime.datetime(2022, 5, 1))
     deserialize_ok(schemas.Datetime(dfmt='%Y/%m/%d'), '2022/05/01', datetime.datetime(2022, 5, 1))
+    deserialize_ok(schemas.Datetime(with_timezone=False), '2022-10-20T10:16:02',
+                   datetime.datetime(2022, 10, 20, 10, 16, 2))
+    deserialize_ok(schemas.Datetime(with_timezone=True), '2022-10-20T10:16:02Z',
+                   datetime.datetime(2022, 10, 20, 10, 16, 2, tzinfo=UTC))
+    deserialize_ok(schemas.Datetime(with_timezone=None), '2022-10-20T10:16:02Z',
+                   datetime.datetime(2022, 10, 20, 10, 16, 2, tzinfo=UTC))
+    deserialize_ok(schemas.Datetime(with_timezone=None), '2022-10-20T10:16:02',
+                   datetime.datetime(2022, 10, 20, 10, 16, 2))
 
     deserialize_err(schemas.Datetime, 20220501, 'Not a valid datetime string')
     deserialize_err(schemas.Datetime, '2022/05/01', 'Not a valid datetime string')
+    deserialize_err(schemas.Datetime(with_timezone=False), '2022-10-20T10:16:02Z',
+                    'not support timezone-aware datetime.')
+    deserialize_err(schemas.Datetime(with_timezone=True), '2022-10-20T10:16:02',
+                    'not support timezone-naive datetime.')
 
     # file
 
