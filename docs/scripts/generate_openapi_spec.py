@@ -1,7 +1,7 @@
 """
-使用 snippets/resources 中的 Resource 实例生成 OAS，放置在 swagger-ui/spec 下
+使用 examples/views 中的 Resource 实例生成 OAS，放置在 swagger-ui/spec 下
 
-可监听 snippets/resources 文件变化回调该脚本
+可监听 examples/views 文件变化回调该脚本
 """
 import json
 import os.path
@@ -14,7 +14,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 
 sys.path.extend([
     os.path.join(os.path.dirname(__file__), '../..'),
-    os.path.normpath(os.path.join(os.path.dirname(__file__), '../snippets'))
+    os.path.normpath(os.path.join(os.path.dirname(__file__), '../examples'))
 ])
 
 from django.conf import settings
@@ -32,7 +32,7 @@ settings.configure(
 
 django.setup()
 
-pkg = __import__('resources')
+pkg = __import__('views')
 
 DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../swagger-ui/spec'))
 
