@@ -31,13 +31,6 @@ from django_openapi.spec import utils as _spec, Tag
 
 
 class OpenAPI:
-    _instances: typing.List['OpenAPI'] = []  # 用于测试
-
-    def __new__(cls, *args, **kwargs):
-        instance = super().__new__(cls)
-        cls._instances.append(instance)
-        return instance
-
     def __init__(
             self,
             *,

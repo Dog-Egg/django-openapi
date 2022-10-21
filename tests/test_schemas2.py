@@ -3,7 +3,6 @@ import datetime
 from decimal import Decimal
 
 import pytest
-from pytz import UTC
 
 from django_openapi.parameters import Query, Body
 from django_openapi.schema import schemas
@@ -142,9 +141,9 @@ def test_serialize_and_deserialize():
     deserialize_ok(schemas.Datetime(with_timezone=False), '2022-10-20T10:16:02',
                    datetime.datetime(2022, 10, 20, 10, 16, 2))
     deserialize_ok(schemas.Datetime(with_timezone=True), '2022-10-20T10:16:02Z',
-                   datetime.datetime(2022, 10, 20, 10, 16, 2, tzinfo=UTC))
+                   datetime.datetime(2022, 10, 20, 10, 16, 2, tzinfo=datetime.timezone.utc))
     deserialize_ok(schemas.Datetime(with_timezone=None), '2022-10-20T10:16:02Z',
-                   datetime.datetime(2022, 10, 20, 10, 16, 2, tzinfo=UTC))
+                   datetime.datetime(2022, 10, 20, 10, 16, 2, tzinfo=datetime.timezone.utc))
     deserialize_ok(schemas.Datetime(with_timezone=None), '2022-10-20T10:16:02',
                    datetime.datetime(2022, 10, 20, 10, 16, 2))
 

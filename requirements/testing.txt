@@ -2,5 +2,4 @@
 
 pytest
 pytest-django
-pytest-order
 requests

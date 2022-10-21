@@ -18,3 +18,9 @@ def get_oas(client):
         return response.json()
 
     return fn
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        '--validate-oas', action='store_true', default=False, help='验证 OpenAPI Specification'
+    )
