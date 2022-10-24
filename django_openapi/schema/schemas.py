@@ -159,7 +159,7 @@ class BaseSchema(metaclass=_SchemaMeta):
     def to_spec(self, *args, **kwargs) -> dict:
         return dict(
             type=self._metadata['data_type'],
-            default=None if self.default is UNDEFINED else self.default,
+            default=None if (self.default is UNDEFINED or callable(self.default)) else self.default,
             example=self.example() if callable(self.example) else self.example,
             description=self.description,
             readOnly=_spec.default_as_none(self.read_only, False),
@@ -252,7 +252,7 @@ class Model(BaseSchema, metaclass=_ModelMeta):
 
                 # default
                 if field.default is not UNDEFINED:
-                    data[field.attr] = field.default
+                    data[field.attr] = field.default() if callable(field.default) else field.default
 
                 continue
 
