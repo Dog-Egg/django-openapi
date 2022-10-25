@@ -74,6 +74,7 @@ class BaseSchema(metaclass=_SchemaMeta):
             deserialize_postprocess: typing.Callable[[typing.Any], typing.Any] = None,
             validators: typing.List[typing.Callable[[typing.Any], None]] = None,  # only deserialize
             fallback: typing.Callable[[typing.Any], typing.Any] = None,  # only serialize
+            deprecated=False,
             read_only=False,
             write_only=False,
             allow_blank=False,  # only deserialize
@@ -95,6 +96,7 @@ class BaseSchema(metaclass=_SchemaMeta):
         self.read_only = read_only
         self.write_only = write_only
         self.allow_blank = allow_blank
+        self.deprecated = deprecated
 
         self.description = _spec.clean_commonmark(description)
         self.example = example
@@ -166,7 +168,8 @@ class BaseSchema(metaclass=_SchemaMeta):
             writeOnly=_spec.default_as_none(self.write_only, False),
             enum=self.choices,
             nullable=_spec.default_as_none(self.nullable, False),
-            format=self._metadata['data_format']
+            format=self._metadata['data_format'],
+            deprecated=_spec.default_as_none(self.deprecated, False),
         )
 
 
