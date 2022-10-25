@@ -14,13 +14,14 @@ graph TD
 
     input --> isnull
     isnull --> |yes|nullable
-    isnull --> |no|deserialize
+    isnull --> |no|deserialize_preprocess
+    deserialize_preprocess --> deserialize
     nullable --> |yes|output
     nullable --> |no|error
     deserialize --> |ok|validate
     deserialize --> |error|error
-    validate -.-> |ok|deserialize_postprocess
-    deserialize_postprocess -.-> output
+    validate --> |ok|deserialize_postprocess
+    deserialize_postprocess --> output
     validate --> |error|error
 ```
 

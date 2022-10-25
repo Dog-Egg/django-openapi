@@ -71,6 +71,7 @@ class BaseSchema(metaclass=_SchemaMeta):
             nullable: bool = False,
             default=UNDEFINED,  # only deserialize
             serialize_preprocess: typing.Callable[[typing.Any], typing.Any] = None,
+            deserialize_preprocess: typing.Callable[[typing.Any], typing.Any] = None,
             deserialize_postprocess: typing.Callable[[typing.Any], typing.Any] = None,
             validators: typing.List[typing.Callable[[typing.Any], None]] = None,  # only deserialize
             fallback: typing.Callable[[typing.Any], typing.Any] = None,  # only serialize
@@ -90,6 +91,7 @@ class BaseSchema(metaclass=_SchemaMeta):
         self.nullable = nullable
         self.default = default
         self.serialize_preprocess = serialize_preprocess
+        self.deserialize_preprocess = deserialize_preprocess
         self.deserialize_postprocess = deserialize_postprocess
         self._validators: typing.List[typing.Callable[[typing.Any], None]] = validators or []
         self.fallback = fallback
@@ -115,6 +117,9 @@ class BaseSchema(metaclass=_SchemaMeta):
                 return obj
             else:
                 raise ValidationError('The value cannot be null')
+
+        if self.deserialize_preprocess:
+            obj = self.deserialize_preprocess(obj)
 
         obj = self._deserialize(obj)
 
