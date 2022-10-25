@@ -11,7 +11,7 @@ from django_openapi.spec.utils import default_as_none
 from django_openapi.exceptions import BadRequest, UnsupportedMediaType, RequestArgsError
 from django_openapi.schema import schemas
 from django_openapi.schema.exceptions import ValidationError
-from django_openapi.utils.functional import make_model_schema
+from django_openapi.utils.functional import make_model_schema, make_schema
 
 
 class BaseParameter:
@@ -28,9 +28,6 @@ class BaseParameter:
 
 
 class BaseRequestParameter(BaseParameter, ABC):
-    def __init__(self, schema):
-        self.schema = make_model_schema(schema)
-
     def parse_request(self, request: HttpRequest):
         try:
             return self._parse_request(request)
@@ -44,8 +41,8 @@ class BaseRequestParameter(BaseParameter, ABC):
 class RequestParameter(BaseRequestParameter, ABC):
     location: typing.Optional[str]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, schema):
+        self.schema = make_model_schema(schema)
         self.parser = StyleParser({f.alias: f.style for f in self.schema.fields}, self.location)
 
     def to_spec(self, spec_id):
@@ -91,7 +88,7 @@ class Body(BaseRequestParameter):
     __limit__ = 1
 
     def __init__(self, schema, *, content_type='application/json'):
-        super().__init__(schema)
+        self.schema = make_schema(schema)
         self.content_types = [content_type] if isinstance(content_type, str) else content_type
         supported_content_types = [
             'application/json',
