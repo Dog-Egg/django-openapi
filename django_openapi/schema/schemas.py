@@ -323,7 +323,11 @@ class Model(BaseSchema, metaclass=_ModelMeta):
         properties = {}
         for field in self.fields:
             field: BaseSchema
-            properties[field.alias] = field.to_spec(spec_id)
+            if isinstance(field, Model):
+                prop = field.to_spec(spec_id, need_required_field=need_required_field)
+            else:
+                prop = field.to_spec(spec_id)
+            properties[field.alias] = prop
 
         __doc__ = _spec.clean_commonmark(self.__class__.__doc__)
 

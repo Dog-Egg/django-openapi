@@ -28,7 +28,8 @@ def test_oas1(oas):
                    "$ref": "#/components/schemas/09c8b2a5.NullableSchema"
                },
                {
-                   "nullable": True
+                   "nullable": True,
+                   "required": ["a"],
                }
            ]
 
