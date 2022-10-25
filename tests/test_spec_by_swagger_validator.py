@@ -27,4 +27,4 @@ def test_validate_spec(client, spec, request):
 
     resp = requests.post('https://validator.swagger.io/validator/debug', json=spec)
     assert resp.status_code == 200
-    assert resp.json() == {}  # 返回 {} 表示 spec 验证有效
+    assert resp.json() == {'schemaValidationMessages': []}
