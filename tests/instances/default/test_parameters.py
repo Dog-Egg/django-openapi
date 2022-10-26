@@ -1,10 +1,10 @@
 """请求参数"""
 
-from django.http import SimpleCookie
+from django.http import SimpleCookie, JsonResponse
 
 from django_openapi import Operation
 from django_openapi.exceptions import NotFound
-from django_openapi.parameters import Query, Header, Cookie
+from django_openapi.parameters import Query, Header, Cookie, Body
 from django_openapi.schema import schemas
 from django_openapi.urls import reverse
 from tests.utils import TestResource, ResourceView
@@ -107,3 +107,11 @@ def test_header_parameter(client):
 def test_cookie_parameter(client):
     client.cookies = SimpleCookie({'c': 'c2'})
     assert client.patch(reverse(Parameter1)).json() == {'c': 'c2'}
+
+
+@TestResource
+class BodyAPI:
+    @staticmethod
+    @Operation(summary='默认的Body')
+    def post(body=Body()):
+        return JsonResponse(body, safe=False)

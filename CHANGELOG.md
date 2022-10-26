@@ -1,6 +1,7 @@
 ## 0.1a5
 
 - 新增：Operation view_decorators
+- 更新：Body 提供默认的 schema
 
 ## 0.1a4
 

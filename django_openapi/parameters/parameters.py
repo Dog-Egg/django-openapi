@@ -84,11 +84,22 @@ class Header(RequestParameter):
         return self.schema.deserialize(self.parser.parse(request.headers))
 
 
+class SimpleObject(schemas.BaseSchema):
+    class Meta:
+        data_type = 'object'
+
+    def _serialize(self, obj):
+        return obj
+
+    def _deserialize(self, obj):
+        return obj
+
+
 class Body(BaseRequestParameter):
     __limit__ = 1
 
-    def __init__(self, schema, *, content_type='application/json'):
-        self.schema = make_schema(schema)
+    def __init__(self, schema=None, *, content_type='application/json'):
+        self.schema = make_schema(schema) if schema is not None else SimpleObject()
         self.content_types = [content_type] if isinstance(content_type, str) else content_type
         supported_content_types = [
             'application/json',
