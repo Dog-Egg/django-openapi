@@ -141,7 +141,7 @@ class Resource:
             path_parameters: typing.Dict[str, BaseSchema] = None,
             tags=None,
             permission=None,
-            view_decorators=None,
+            view_decorators: list = None,
             include_in_spec=True,
     ):
         if not path.startswith('/'):
@@ -159,6 +159,26 @@ class Resource:
         # path_kwargs_style_parser 必须在 parse_path() 后设置，parse_path() 会将为定义的路径参数添加到 path_parameters 中
         self._path_kwargs_style_parser = StyleParser({key: value.style for key, value in self.path_parameters.items()},
                                                      'path')
+
+    def __get_view_decorators(self):
+        for d in self.view_decorators:
+            yield d
+
+        def operation_decorator(source_decorator, http_method):
+            def decorator(view):
+                @functools.wraps(view)
+                def wrapper(request, *args, **kwargs):
+                    if request.method == http_method:
+                        return source_decorator(view)(request, *args, **kwargs)
+                    return view(request, *args, **kwargs)
+
+                return wrapper
+
+            return decorator
+
+        for method, operation in self.operations.items():
+            for d in operation.view_decorators:
+                yield operation_decorator(d, method.upper())
 
     def __call__(self, klass) -> 'Resource':
         for method in self.HTTP_METHODS:
@@ -202,7 +222,7 @@ class Resource:
                 return respond.handle_error(exc)
             return respond.make_response(rv, status_code)
 
-        for decorator in self.view_decorators:
+        for decorator in self.__get_view_decorators():
             view = decorator(view)
 
         return view
@@ -276,7 +296,8 @@ class Operation:
             deprecated: bool = False,
             include_in_spec=True,
             permission=None,
-            status_code: int = 200
+            status_code: int = 200,
+            view_decorators: list = None,
     ):
         self._tags = tags or []
         self.summary = summary
@@ -294,6 +315,7 @@ class Operation:
         self.resource: typing.Optional[Resource] = None
 
         self.parameters: typing.Dict[str, BaseParameter] = {}
+        self.view_decorators = view_decorators or []
 
     def _get_tags(self, spec_id):
         tags = []

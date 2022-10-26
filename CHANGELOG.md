@@ -1,3 +1,7 @@
+## 0.1a5
+
+- 新增：Operation view_decorators
+
 ## 0.1a4
 
 - 新增：schema BaseSchema 参数 `deserialize_preprocess`, `deserialize_postprocess`
