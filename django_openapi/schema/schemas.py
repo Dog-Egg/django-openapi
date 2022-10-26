@@ -179,6 +179,8 @@ class BaseSchema(metaclass=_SchemaMeta):
 
 
 class _ModelFields:
+    __slots__ = ('__fields',)
+
     def __init__(self, fields: typing.Dict[str, BaseSchema]):
         self.__fields = fields
 

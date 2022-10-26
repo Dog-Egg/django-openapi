@@ -198,6 +198,16 @@ def test_nullable(schema):
         schema(nullable=False).deserialize(None)
 
 
+def test_schema_model_fields_not_set():
+    """测试 schema Model fields 不可被设置"""
+
+    class Schema(schemas.Model):
+        foo = schemas.Integer()
+
+    with pytest.raises(AttributeError, match="^'_ModelFields' object has no attribute 'foo'$"):
+        Schema.fields.foo = 1
+
+
 @TestResource
 class ResA(ResourceView):
     @staticmethod
