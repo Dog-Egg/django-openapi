@@ -598,6 +598,13 @@ class Dict(BaseSchema):
     def _serialize(self, obj):
         return {self.key_schema.serialize(key): self.value_schema.serialize(val) for key, val in obj.items()}
 
+    def to_spec(self, *args, **kwargs) -> dict:
+        spec = super().to_spec(*args, **kwargs)
+        spec.update(
+            additionalProperties=self.value_schema.to_spec(*args, **kwargs)
+        )
+        return spec
+
 
 class Date(BaseSchema):
     def __init__(self, *args, fmt=None, dfmt=None, **kwargs):
