@@ -47,6 +47,6 @@ class Respond(BaseRespond):
         if isinstance(e, exceptions.MethodNotAllowed):
             return make_response(405)
         if isinstance(e, exceptions.UnsupportedMediaType):
-            return make_response(405)
+            return make_response(415)
 
         raise e
