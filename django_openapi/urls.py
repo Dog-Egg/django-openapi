@@ -7,8 +7,9 @@ __all__ = ('reverse', 'reverse_lazy')
 
 
 def reverse(viewname, *args, **kwargs):
-    if isinstance(viewname, Resource):
-        viewname = viewname.view
+    resource = Resource.checkout(viewname)
+    if resource is not None:
+        viewname = resource.as_view()
     return _reverse(viewname, *args, **kwargs)
 
 

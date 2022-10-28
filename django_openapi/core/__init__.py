@@ -64,14 +64,17 @@ class OpenAPI:
         rv = '%s:%s' % (os.path.relpath(frame.filename), frame.lineno)
         return hashlib.md5(rv.encode()).hexdigest()
 
-    def add_resource(self, resource):
+    def add_resource(self, obj):
+        resource = Resource.checkout(obj)
+        if resource is None:
+            raise ValueError('%s is not marked by %s.' % (obj, Resource.__name__))
+
         assert resource.root is None
         resource.root = self
 
         self._resources.append(resource)
 
         view = resource.as_view()
-        resource.view = view
         self._append_url(resource.django_path, view)
 
     def _append_url(self, path, *args, **kwargs):
@@ -132,7 +135,6 @@ class Resource:
         "options",
         "trace",
     ]
-    view: typing.Callable
 
     def __init__(
             self,
@@ -155,6 +157,7 @@ class Resource:
         self.view_decorators = view_decorators or []
         self.include_in_spec = include_in_spec
         self._parse_path(path)
+        self.__view_function = None
 
         # path_kwargs_style_parser 必须在 parse_path() 后设置，parse_path() 会将为定义的路径参数添加到 path_parameters 中
         self._path_kwargs_style_parser = StyleParser({key: value.style for key, value in self.path_parameters.items()},
@@ -180,7 +183,14 @@ class Resource:
             for d in operation.view_decorators:
                 yield operation_decorator(d, method.upper())
 
-    def __call__(self, klass) -> 'Resource':
+    __marked: typing.Dict[typing.Type, 'Resource'] = {}
+
+    def __call__(self, klass):
+        if klass in self.__marked:
+            raise ValueError('%s has been marked by %s.' % (klass, self.__class__.__name__))
+        self.__marked[klass] = self
+        self.__klass = klass
+
         for method in self.HTTP_METHODS:
             handler = getattr(klass, method, None)
             if handler is None:
@@ -197,9 +207,14 @@ class Resource:
             assert operation.resource is None
             operation.resource = self
 
-        assert not hasattr(self, 'klass')
-        self.klass = klass
-        return self
+        return klass
+
+    @classmethod
+    def checkout(cls, obj) -> typing.Optional['Resource']:
+        try:
+            return cls.__marked.get(obj)
+        except TypeError:
+            return None
 
     def _parse_path_parameters(self, kwargs):
         kwargs = self._path_kwargs_style_parser.parse(kwargs)
@@ -213,26 +228,30 @@ class Resource:
         return kwargs
 
     def as_view(self):
-        @csrf_exempt
-        def view(request, *args, **kwargs) -> HttpResponseBase:
-            respond = self.root.respond(request)  # type: ignore
-            try:
-                rv, status_code = self._view(request, *args, **kwargs)
-            except Exception as exc:
-                return respond.handle_error(exc)
-            return respond.make_response(rv, status_code)
+        if self.__view_function is None:
+            @csrf_exempt
+            def view(request, *args, **kwargs) -> HttpResponseBase:
+                respond = self.root.respond(request)  # type: ignore
+                try:
+                    rv, status_code = self._view(request, *args, **kwargs)
+                except Exception as exc:
+                    return respond.handle_error(exc)
+                return respond.make_response(rv, status_code)
 
-        for decorator in self.__get_view_decorators():
-            view = decorator(view)
+            for decorator in self.__get_view_decorators():
+                view = decorator(view)
 
-        return view
+            self.__view_function = view
+
+        return self.__view_function
 
     def _view(self, request, *args, **kwargs) -> typing.Tuple[typing.Any, int]:
         kwargs = self._parse_path_parameters(kwargs)  # raise path parameter 404
 
         method = request.method.lower()
-        if method in self.HTTP_METHODS and hasattr(self.klass, method):
-            instance = self.klass() if self.klass.__init__ is object.__init__ else self.klass(request, *args, **kwargs)
+        if method in self.HTTP_METHODS and hasattr(self.__klass, method):
+            instance = self.__klass() if self.__klass.__init__ is object.__init__ else self.__klass(request, *args,
+                                                                                                    **kwargs)
             handler = getattr(instance, method)
         else:
             raise MethodNotAllowed  # raise 405

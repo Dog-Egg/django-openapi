@@ -4,7 +4,7 @@ from django_openapi import OpenAPI, Resource
 from django_openapi.schema import schemas
 
 
-class ResourceClass:
+class API:
     def __init__(self, request, arg):
         self.arg = arg
 
@@ -12,11 +12,23 @@ class ResourceClass:
         return {'arg': self.arg}
 
 
+class API2(API):
+    pass
+
+
+class API3(API):
+    pass
+
+
+class API4(API):
+    pass
+
+
 openapi = OpenAPI()
-openapi.add_resource(Resource('/path/{arg}')(ResourceClass))
-openapi.add_resource(Resource('/path2/{arg}', path_parameters={'arg': schemas.Integer()})(ResourceClass))
-openapi.add_resource(Resource('/path3/{arg}', path_parameters={'arg': schemas.Path()})(ResourceClass))
-openapi.add_resource(Resource('/path4{arg}', path_parameters={'arg': schemas.Path()})(ResourceClass))
+openapi.add_resource(Resource('/path/{arg}')(API))
+openapi.add_resource(Resource('/path2/{arg}', path_parameters={'arg': schemas.Integer()})(API2))
+openapi.add_resource(Resource('/path3/{arg}', path_parameters={'arg': schemas.Path()})(API3))
+openapi.add_resource(Resource('/path4{arg}', path_parameters={'arg': schemas.Path()})(API4))
 
 urlpatterns = openapi.urls
 

@@ -2,6 +2,7 @@
 
 - 新增：Operation view_decorators
 - 更新：Body 提供默认的 schema
+- 更新：`@Resource` 只做标记，不修改类本身
 
 ## 0.1a4
 

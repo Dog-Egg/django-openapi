@@ -72,5 +72,5 @@ class TestOpenAPI(OpenAPI):
         for info in walk_packages(package.__path__):
             module = import_module(package.__name__ + '.' + info.name)
             for v in vars(module).values():
-                if isinstance(v, Resource):
+                if Resource.checkout(v):
                     self.add_resource(v)
