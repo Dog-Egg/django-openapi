@@ -84,7 +84,7 @@ class Header(RequestParameter):
         return self.schema.deserialize(self.parser.parse(request.headers))
 
 
-class SimpleObject(schemas.BaseSchema):
+class FreeFormObject(schemas.BaseSchema):
     class Meta:
         data_type = 'object'
 
@@ -99,7 +99,7 @@ class Body(BaseRequestParameter):
     __limit__ = 1
 
     def __init__(self, schema=None, *, content_type='application/json'):
-        self.schema = make_schema(schema) if schema is not None else SimpleObject()
+        self.schema = make_schema(schema) if schema is not None else FreeFormObject()
         self.content_types = [content_type] if isinstance(content_type, str) else content_type
         supported_content_types = [
             'application/json',
@@ -112,10 +112,7 @@ class Body(BaseRequestParameter):
                     '%r' % item for item in supported_content_types))
 
     def to_spec(self, spec_id):
-        if isinstance(self.schema, schemas.Model):
-            schema_spec = self.schema.to_spec(spec_id, need_required_field=True)
-        else:
-            schema_spec = self.schema.to_spec(spec_id)
+        schema_spec = self.schema.to_spec(spec_id, need_required_field=True)
 
         media_type = dict(
             schema=schema_spec,

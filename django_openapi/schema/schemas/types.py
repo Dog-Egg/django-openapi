@@ -2,9 +2,8 @@ import datetime
 import hashlib
 import inspect
 import itertools
-import operator
 import typing
-from collections.abc import Mapping, Iterable
+from collections.abc import Iterable
 
 from dateutil.parser import isoparse
 from django.conf import settings
@@ -13,7 +12,7 @@ from django.utils import timezone
 from django_openapi.parameters.style import Style
 from django_openapi.schema import validators as _validators
 from django_openapi.schema.exceptions import ValidationError
-from django_openapi.utils.functional import Filter, make_schema, make_instance
+from django_openapi.utils.functional import Filter, make_schema, make_instance, Getter
 from django_openapi.spec import utils as _spec
 
 UNDEFINED = type('undefined', (), {})()
@@ -111,50 +110,50 @@ class BaseSchema(metaclass=_SchemaMeta):
         if choices:
             self._validators.append(_validators.ChoicesValidator(choices))
 
-    def deserialize(self, obj):
-        if obj is None:
+    def deserialize(self, value):
+        if value is None:
             if self.nullable:
-                return obj
+                return value
             else:
                 raise ValidationError('The value cannot be null')
 
         if self.deserialize_preprocess:
-            obj = self.deserialize_preprocess(obj)
+            value = self.deserialize_preprocess(value)
 
-        obj = self._deserialize(obj)
+        value = self._deserialize(value)
 
         error = ValidationError()
         for validator in itertools.chain(self._metadata['default_validators'], self._validators):
             try:
-                validator(obj)
+                validator(value)
             except ValidationError as exc:
                 error.concat(exc)
         if error.nonempty:
             raise error
 
         if self.deserialize_postprocess:
-            obj = self.deserialize_postprocess(obj)
+            value = self.deserialize_postprocess(value)
 
-        return obj
+        return value
 
-    def _deserialize(self, obj):
+    def _deserialize(self, value):
         raise NotImplementedError
 
-    def serialize(self, obj):
+    def serialize(self, value):
         try:
-            if obj is None:
+            if value is None:
                 if self.nullable:
-                    return obj
+                    return value
                 raise ValueError('The value cannot be None')
             if self.serialize_preprocess:
-                obj = self.serialize_preprocess(obj)
-            return self._serialize(obj)
+                value = self.serialize_preprocess(value)
+            return self._serialize(value)
         except Exception:
             if self.fallback:
-                return self.fallback(obj)
+                return self.fallback(value)
             raise
 
-    def _serialize(self, obj):
+    def _serialize(self, value):
         raise NotImplementedError
 
     def copy_with(self, **kwargs):
@@ -276,15 +275,15 @@ class Model(BaseSchema, metaclass=_ModelMeta):
         return data
 
     def _serialize(self, obj):
-        get_value = operator.getitem if isinstance(obj, Mapping) else getattr
+        getter = Getter(obj)
         values = {}
         for field in self.fields:
             field: BaseSchema
             if field.write_only:
                 continue
             try:
-                value = get_value(obj, field.attr)
-            except (AttributeError, KeyError):
+                value = getter(field.attr)
+            except getter.EXCEPTIONS:
                 if field.fallback:
                     # Model 字段 fallback 返回的值，仍需要去被字段序列
                     value = field.fallback(UNDEFINED)
@@ -333,11 +332,7 @@ class Model(BaseSchema, metaclass=_ModelMeta):
         properties = {}
         for field in self.fields:
             field: BaseSchema
-            if isinstance(field, Model):
-                prop = field.to_spec(spec_id, need_required_field=need_required_field)
-            else:
-                prop = field.to_spec(spec_id)
-            properties[field.alias] = prop
+            properties[field.alias] = field.to_spec(spec_id, need_required_field=need_required_field)
 
         __doc__ = _spec.clean_commonmark(self.__class__.__doc__)
 
@@ -559,10 +554,10 @@ class List(BaseSchema):
             rv.append(self._child.serialize(item))
         return rv
 
-    def to_spec(self, spec_id=None):
+    def to_spec(self, spec_id=None, *args, **kwargs):
         spec = super().to_spec()
         spec.update(
-            items=self._child.to_spec(spec_id),
+            items=self._child.to_spec(spec_id, *args, **kwargs),
             maxItems=self.max_items,
             minItems=self.min_items,
             uniqueItems=_spec.default_as_none(self.unique_items, False),

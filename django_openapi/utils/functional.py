@@ -1,4 +1,6 @@
 import inspect
+import operator
+from typing import Mapping
 
 from django_openapi.schema import schemas
 
@@ -48,3 +50,14 @@ class Filter:
         if self.exclude_fields is not None:
             return value not in self.exclude_fields
         return True
+
+
+class Getter:
+    EXCEPTIONS = (AttributeError, KeyError)
+
+    def __init__(self, obj):
+        self.obj = obj
+        self.getter = operator.getitem if isinstance(obj, Mapping) else getattr
+
+    def __call__(self, name):
+        return self.getter(self.obj, name)

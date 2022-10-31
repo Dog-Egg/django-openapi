@@ -1,8 +1,9 @@
-## 0.1a5
+## 0.1a5 (dev)
 
 - 新增：Operation view_decorators
 - 更新：Body 提供默认的 schema
 - 更新：`@Resource` 只做标记，不修改类本身
+- 新增：混合类型 `OneOf` 和 `AnyOf`
 
 ## 0.1a4
 

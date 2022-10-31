@@ -165,6 +165,25 @@ def test_serialize_and_deserialize():
     deserialize_ok(schemas.Any, '1', '1')
     deserialize_ok(schemas.Any, None, None)
 
+    # anyOf
+    serialize_ok(schemas.AnyOf(schemas.Integer, schemas.String), '1', 1)
+    serialize_ok(schemas.AnyOf(schemas.Integer, schemas.String), 'a', 'a')
+    serialize_ok(schemas.AnyOf(schemas.String, schemas.Integer), 1, '1')
+
+    deserialize_ok(schemas.AnyOf(schemas.Integer, schemas.String), '1', 1)
+    deserialize_ok(schemas.AnyOf(schemas.Integer, schemas.String), 'a', 'a')
+    deserialize_ok(schemas.AnyOf(schemas.String, schemas.Integer), '1', '1')
+
+    # oneOf
+    serialize_ok(schemas.OneOf(schemas.Integer, schemas.String), '1', 1)
+    serialize_ok(schemas.OneOf(schemas.Integer, schemas.String), 'a', 'a')
+    serialize_ok(schemas.OneOf(schemas.String, schemas.Integer), 1, '1')
+
+    deserialize_ok(schemas.OneOf(schemas.Integer, schemas.String), 'a', 'a')
+    deserialize_ok(schemas.OneOf(schemas.Integer, schemas.String), 1, 1)
+
+    deserialize_err(schemas.OneOf(schemas.Integer, schemas.String), '1', 'multiple schemas were matched.')
+
 
 def test_schema_to_spec(to_spec):
     assert to_spec(schemas.String) == dict(type='string')

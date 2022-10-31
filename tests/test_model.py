@@ -191,7 +191,7 @@ def test_validate_error():
 def test_default_validators():
     def validate_time(data):
         if data['start_time'] > data['end_time']:
-            raise schemas.ValidationError('开始时间不能大于结束时间')
+            raise ValidationError('开始时间不能大于结束时间')
 
     class Schema(schemas.Model):
         start_time = schemas.Datetime()
