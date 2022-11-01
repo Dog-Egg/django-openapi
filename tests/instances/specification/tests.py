@@ -1,4 +1,6 @@
-from tests.utils import itemgetter
+from django_openapi.parameters import Body
+from django_openapi.schema import schemas
+from tests.utils import itemgetter, TestResource
 
 
 def test_oas_servers(oas):
@@ -23,3 +25,14 @@ def test_oas_schema_description(oas):
             "description": "doc 2"
         }
     }
+
+
+@TestResource('/example')
+class ExampleAPI:
+    def post(self, body=Body(schemas.Model.from_dict({'a': schemas.Integer()})(example={}))):
+        pass
+
+
+def test_example(oas):
+    assert itemgetter(oas, ['paths', '/example', 'post', 'requestBody', 'content', 'application/json', 'schema',
+                            'example']) == {}

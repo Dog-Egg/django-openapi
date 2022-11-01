@@ -1,10 +1,9 @@
 from urllib.parse import urljoin
 
-from django_openapi import OpenAPI
-from . import views
+from ...utils import TestOpenAPI
 
 
-class MyOpenAPI(OpenAPI):
+class MyOpenAPI(TestOpenAPI):
     def get_spec(self, request=None):
         spec = super().get_spec(request)
         for s in spec['servers']:
@@ -15,6 +14,6 @@ class MyOpenAPI(OpenAPI):
 
 openapi = MyOpenAPI(title='Specification Testing')
 
-openapi.add_resource(views.A)
+openapi.find_resources(__package__)
 
 __prefix__ = 'spec'

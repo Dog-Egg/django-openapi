@@ -80,7 +80,7 @@ class BaseSchema(metaclass=_SchemaMeta):
             allow_blank=False,  # only deserialize
             choices=None,
             description: str = None,  # openapi spec
-            example=None,  # openapi spec
+            example=UNDEFINED,  # openapi spec
             style: Style = None,
     ):
         self.alias = alias  # serialize: attr -> alias
@@ -166,7 +166,8 @@ class BaseSchema(metaclass=_SchemaMeta):
         return dict(
             type=self._metadata['data_type'],
             default=None if (self.default is UNDEFINED or callable(self.default)) else self.default,
-            example=self.example() if callable(self.example) else self.example,
+            example=None if self.example is UNDEFINED else _spec.Skip(
+                self.example() if callable(self.example) else self.example),
             description=self.description,
             readOnly=_spec.default_as_none(self.read_only, False),
             writeOnly=_spec.default_as_none(self.write_only, False),
