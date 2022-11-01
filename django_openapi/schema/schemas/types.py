@@ -15,7 +15,7 @@ from django_openapi.schema.exceptions import ValidationError
 from django_openapi.utils.functional import Filter, make_schema, make_instance, Getter
 from django_openapi.spec import utils as _spec
 
-UNDEFINED = type('undefined', (), {})()
+EMPTY = type('empty', (), {})()
 
 _INHERITABLE_METADATA: dict = dict(
     data_type='string',
@@ -68,7 +68,7 @@ class BaseSchema(metaclass=_SchemaMeta):
             attr: str = None,
             required: bool = None,  # apply to schema
             nullable: bool = False,
-            default=UNDEFINED,  # only deserialize
+            default=EMPTY,  # only deserialize
             serialize_preprocess: typing.Callable[[typing.Any], typing.Any] = None,
             deserialize_preprocess: typing.Callable[[typing.Any], typing.Any] = None,
             deserialize_postprocess: typing.Callable[[typing.Any], typing.Any] = None,
@@ -80,13 +80,13 @@ class BaseSchema(metaclass=_SchemaMeta):
             allow_blank=False,  # only deserialize
             choices=None,
             description: str = None,  # openapi spec
-            example=UNDEFINED,  # openapi spec
+            example=EMPTY,  # openapi spec
             style: Style = None,
     ):
         self.alias = alias  # serialize: attr -> alias
         self.attr = attr  # deserialize: alias -> attr
         self.name = None  # field name
-        self.required = required if isinstance(required, bool) else (default is UNDEFINED)  # 仅反序列使用
+        self.required = required if isinstance(required, bool) else (default is EMPTY)  # 仅反序列使用
         self.nullable = nullable
         self.default = default
         self.serialize_preprocess = serialize_preprocess
@@ -165,8 +165,8 @@ class BaseSchema(metaclass=_SchemaMeta):
     def to_spec(self, *args, **kwargs) -> dict:
         return dict(
             type=self._metadata['data_type'],
-            default=None if (self.default is UNDEFINED or callable(self.default)) else self.default,
-            example=None if self.example is UNDEFINED else _spec.Skip(
+            default=None if (self.default is EMPTY or callable(self.default)) else self.default,
+            example=None if self.example is EMPTY else _spec.Skip(
                 self.example() if callable(self.example) else self.example),
             description=self.description,
             readOnly=_spec.default_as_none(self.read_only, False),
@@ -261,7 +261,7 @@ class Model(BaseSchema, metaclass=_ModelMeta):
                     error.setitem(field.alias, ValidationError(msg))
 
                 # default
-                if field.default is not UNDEFINED:
+                if field.default is not EMPTY:
                     data[field.attr] = field.default() if callable(field.default) else field.default
 
                 continue
@@ -287,7 +287,7 @@ class Model(BaseSchema, metaclass=_ModelMeta):
             except getter.EXCEPTIONS:
                 if field.fallback:
                     # Model 字段 fallback 返回的值，仍需要去被字段序列
-                    value = field.fallback(UNDEFINED)
+                    value = field.fallback(EMPTY)
                 else:
                     raise
 
@@ -634,8 +634,8 @@ class Datetime(Date):
         data_type = 'string'
         data_format = 'date-time'
 
-    def __init__(self, *args, with_timezone: typing.Optional[bool] = UNDEFINED, **kwargs):
-        self.with_timezone: typing.Optional[bool] = settings.USE_TZ if with_timezone is UNDEFINED else with_timezone
+    def __init__(self, *args, with_timezone: typing.Optional[bool] = EMPTY, **kwargs):
+        self.with_timezone: typing.Optional[bool] = settings.USE_TZ if with_timezone is EMPTY else with_timezone
         if self.with_timezone is False:
             kwargs.setdefault('example', datetime.datetime.now)
         super().__init__(*args, **kwargs)

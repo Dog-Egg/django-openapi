@@ -104,11 +104,11 @@ def test_fallback_call_times():
 
     m = mock.Mock()
     _test_(fallback2)
-    m.assert_has_calls([mock.call(schemas.UNDEFINED), mock.call('2022-01-01')])
+    m.assert_has_calls([mock.call(schemas.EMPTY), mock.call('2022-01-01')])
 
     m = mock.Mock()
     _test_(fallback1)
-    m.assert_has_calls([mock.call(schemas.UNDEFINED)])
+    m.assert_has_calls([mock.call(schemas.EMPTY)])
 
 
 def test_list_validators():

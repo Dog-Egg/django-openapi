@@ -1,6 +1,6 @@
 from .types import (
     BaseSchema,
-    UNDEFINED,
+    EMPTY,
     Model,
     String,
     Float,

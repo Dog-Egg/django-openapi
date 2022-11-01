@@ -38,7 +38,7 @@ class Convertor:
         required = None
 
         # default
-        default = schemas.UNDEFINED
+        default = schemas.EMPTY
         if field.default is not models.NOT_PROVIDED:
             if not callable(field.default):
                 default = field.default
