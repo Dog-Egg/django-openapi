@@ -1,3 +1,7 @@
+## 0.1a6 (dev)
+
+- 新增：schema Model 参数 `unknown_fields`
+
 ## 0.1a5
 
 - 新增：Operation view_decorators

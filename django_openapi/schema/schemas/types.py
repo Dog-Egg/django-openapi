@@ -1,3 +1,4 @@
+import copy
 import datetime
 import hashlib
 import inspect
@@ -227,12 +228,22 @@ class Model(BaseSchema, metaclass=_ModelMeta):
     class Meta:
         data_type = 'object'
 
+    INCLUDE = 'include'
+    EXCLUDE = 'exclude'
+    ERROR = 'error'
+
     def __init__(self,
                  *args,
                  required_fields=None,
+                 unknown_fields: str = EXCLUDE,
                  **kwargs):
         super().__init__(*args, **kwargs)
         self.__required_fields = required_fields
+
+        unknown_values = [self.INCLUDE, self.EXCLUDE, self.ERROR]
+        if unknown_fields not in unknown_values:
+            raise ValueError(f'unknown_fields must be one of {", ".join([repr(i) for i in unknown_values])}.')
+        self._unknown_fields = unknown_fields
 
     def __check_required(self, field: BaseSchema):
         if self.__required_fields == '__all__':
@@ -243,6 +254,8 @@ class Model(BaseSchema, metaclass=_ModelMeta):
         return field.required
 
     def _deserialize(self, obj: dict):
+        obj = copy.copy(obj)
+
         data = {}
         error = ValidationError()
 
@@ -250,14 +263,20 @@ class Model(BaseSchema, metaclass=_ModelMeta):
             if field.read_only:
                 continue
 
+            if field.alias in obj:
+                value = obj[field.alias]
+                del obj[field.alias]
+            else:
+                value = EMPTY
+
             if (
-                    field.alias not in obj
+                    value is EMPTY
             ) or (
-                    not field.allow_blank and obj[field.alias] == ''
+                    not field.allow_blank and value == ''
             ):
                 # required
                 if self.__check_required(field):
-                    msg = '字段不能为空' if field.alias in obj else '这个字段是必需的'
+                    msg = '字段不能为空' if value is not EMPTY else '这个字段是必需的'
                     error.setitem(field.alias, ValidationError(msg))
 
                 # default
@@ -267,12 +286,20 @@ class Model(BaseSchema, metaclass=_ModelMeta):
                 continue
 
             try:
-                data[field.attr] = field.deserialize(obj[field.alias])
+                data[field.attr] = field.deserialize(value)
             except ValidationError as exc:
                 error.setitem(field.alias, exc)
 
+        if self._unknown_fields == self.EXCLUDE:
+            pass
+        elif self._unknown_fields == self.INCLUDE:
+            data.update(obj)
+        elif self._unknown_fields == self.ERROR and obj:
+            [error.setitem(k, ValidationError('unknown field.')) for k in obj]
+
         if error.nonempty:
             raise error
+
         return data
 
     def _serialize(self, obj):
