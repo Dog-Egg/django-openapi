@@ -15,16 +15,38 @@ def test_error_param():
 
 
 def test_include():
-    result = Schema(unknown_fields=Schema.INCLUDE).deserialize({'name': 'Lee', 'address': '小胡同'})
+    result = Schema(unknown_fields='include').deserialize({'name': 'Lee', 'address': '小胡同'})
     assert result == {'name': 'Lee', 'address': '小胡同'}
 
 
 def test_error():
     with pytest.raises(ValidationError):
         try:
-            Schema(unknown_fields=Schema.ERROR).deserialize({'name': 'Lee', 'address': '小胡同', 'id': 1})
+            Schema(unknown_fields='error').deserialize({'name': 'Lee', 'address': '小胡同', 'id': 1})
         except ValidationError as exc:
             assert exc.format_errors() == {'address': ['unknown field.'], 'id': ['unknown field.']}
             raise
 
-    assert Schema(unknown_fields=Schema.ERROR).deserialize({'name': 'Lee'}) == {'name': 'Lee'}
+    assert Schema(unknown_fields='error').deserialize({'name': 'Lee'}) == {'name': 'Lee'}
+
+
+# test Meta
+
+class SchemaA(schemas.Model):
+    name = schemas.String()
+
+    class Meta:
+        unknown_fields = 'error'
+
+
+class SchemaB(SchemaA):
+    age = schemas.Integer()
+
+
+def test_meta_unknown_fields():
+    with pytest.raises(ValidationError):
+        try:
+            SchemaB().deserialize({'name': 'Lee', 'age': 18, 'address': '北京'})
+        except ValidationError as exc:
+            assert exc.format_errors() == {'address': ['unknown field.']}
+            raise

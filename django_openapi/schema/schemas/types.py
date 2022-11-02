@@ -22,6 +22,7 @@ _INHERITABLE_METADATA: dict = dict(
     data_type='string',
     data_format=None,
     default_validators=[],
+    unknown_fields='exclude',
 )
 _NON_INHERITED_METADATA = dict(
     register_as_component=True,
@@ -222,25 +223,28 @@ class _ModelMeta(_SchemaMeta):
         return super().__new__(mcs, classname, bases, attrs)
 
 
+INCLUDE = 'include'
+EXCLUDE = 'exclude'
+ERROR = 'error'
+
+
 class Model(BaseSchema, metaclass=_ModelMeta):
     fields: _ModelFields
 
     class Meta:
         data_type = 'object'
 
-    INCLUDE = 'include'
-    EXCLUDE = 'exclude'
-    ERROR = 'error'
-
     def __init__(self,
                  *args,
                  required_fields=None,
-                 unknown_fields: str = EXCLUDE,
+                 unknown_fields: str = None,
                  **kwargs):
         super().__init__(*args, **kwargs)
         self.__required_fields = required_fields
 
-        unknown_values = [self.INCLUDE, self.EXCLUDE, self.ERROR]
+        if unknown_fields is None:
+            unknown_fields = self._metadata['unknown_fields']
+        unknown_values = [INCLUDE, EXCLUDE, ERROR]
         if unknown_fields not in unknown_values:
             raise ValueError(f'unknown_fields must be one of {", ".join([repr(i) for i in unknown_values])}.')
         self._unknown_fields = unknown_fields
@@ -290,11 +294,11 @@ class Model(BaseSchema, metaclass=_ModelMeta):
             except ValidationError as exc:
                 error.setitem(field.alias, exc)
 
-        if self._unknown_fields == self.EXCLUDE:
+        if self._unknown_fields == EXCLUDE:
             pass
-        elif self._unknown_fields == self.INCLUDE:
+        elif self._unknown_fields == INCLUDE:
             data.update(obj)
-        elif self._unknown_fields == self.ERROR and obj:
+        elif self._unknown_fields == ERROR and obj:
             [error.setitem(k, ValidationError('unknown field.')) for k in obj]
 
         if error.nonempty:

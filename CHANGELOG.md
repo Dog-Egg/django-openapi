@@ -1,6 +1,6 @@
 ## 0.1a6 (dev)
 
-- 新增：schema Model 参数 `unknown_fields`
+- 新增：schema Model 参数 `unknown_fields`，支持元数据定义默认值。
 
 ## 0.1a5
 
