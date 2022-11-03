@@ -90,3 +90,26 @@ class Res(ResourceView):
     @staticmethod
     def get(paginator=PageNumberPaginator(User)):
         return paginator.paginate(User.objects.all())
+
+
+class PermissionTree(models.Model):
+    code = models.CharField(max_length=50)
+    description = models.CharField(max_length=255, blank=True)
+    parent = models.ForeignKey('PermissionTree', on_delete=models.CASCADE, null=True, verbose_name='父节点ID')
+
+
+@pytest.mark.django_db
+def test_foreignkey():
+    schema = model2schema(PermissionTree)
+    assert isinstance(schema.fields.parent_id, schemas.Integer)
+    assert schema.fields.parent_id.alias == 'parent_id'
+    assert schema.fields.parent_id.description == "父节点ID"
+    assert schema.fields.parent_id.nullable is True
+    assert schema.fields.parent_id.required is True
+
+    instance1 = PermissionTree.objects.create(code='code')
+    data = schema(unknown_fields='error').deserialize(dict(code='code', parent_id=1))
+    instance2 = PermissionTree.objects.create(**data)
+    assert instance2.parent == instance1
+
+    assert schema().serialize(instance2) == {'code': 'code', 'description': '', 'id': 2, 'parent_id': 1}

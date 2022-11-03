@@ -125,6 +125,18 @@ class FileSchema(schemas.BaseSchema):
         return obj.url
 
 
+class ForeignKeyConvertor(Convertor):
+    def convert(self, field, extra_kwargs=None):
+        target_field = field.target_field
+        convertor = MODEL_FIELD_CONVERTORS.get(type(target_field))
+        if not convertor:
+            return
+
+        kwargs = self.get_common_kwargs(field)
+        extra_kwargs and kwargs.update(extra_kwargs)
+        return convertor.convert(target_field, extra_kwargs=kwargs)
+
+
 MODEL_FIELD_CONVERTORS = {
     models.AutoField: Convertor(schemas.Integer),
     models.BigAutoField: Convertor(schemas.Integer),
@@ -143,6 +155,7 @@ MODEL_FIELD_CONVERTORS = {
     models.PositiveIntegerField: Convertor(schemas.Integer),
     models.PositiveSmallIntegerField: Convertor(schemas.Integer),
     models.DecimalField: DecimalConvertor(),
+    models.ForeignKey: ForeignKeyConvertor(),
 }
 if django.VERSION >= (3, 1):
     MODEL_FIELD_CONVERTORS.update({
@@ -164,14 +177,15 @@ def model2schema(
     # noinspection PyUnresolvedReferences,PyProtectedMember
     for field in model._meta.fields:
         field: models.Field  # type: ignore
-        if not filter_.check(field.name):
+        model_field_name = field.attname
+        if not filter_.check(model_field_name):
             continue
         convertor = MODEL_FIELD_CONVERTORS.get(type(field))
         if not convertor:
             continue
-        fields[field.name] = convertor.convert(
+        fields[model_field_name] = convertor.convert(
             field,
-            extra_kwargs=extra_kwargs.pop(field.name, None),
+            extra_kwargs=extra_kwargs.pop(model_field_name, None),
         )
 
     # 避免修改 model 字段名后忘记修改此处，所以对没用的 extra_kwargs 报错

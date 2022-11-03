@@ -6,7 +6,7 @@ from django_openapi.schema.exceptions import ValidationError
 
 class Schema(schemas.Model):
     id = schemas.Integer(read_only=True)
-    name = schemas.String()
+    name = schemas.String()  # type: ignore
 
 
 def test_error_param():
@@ -33,7 +33,7 @@ def test_error():
 # test Meta
 
 class SchemaA(schemas.Model):
-    name = schemas.String()
+    name = schemas.String()  # type: ignore
 
     class Meta:
         unknown_fields = 'error'

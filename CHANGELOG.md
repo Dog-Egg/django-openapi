@@ -1,6 +1,7 @@
 ## 0.1a6 (dev)
 
 - 新增：schema Model 参数 `unknown_fields`，支持元数据定义默认值。
+- 更新：model2schema 支持转换 ForeignKey。
 
 ## 0.1a5
 
