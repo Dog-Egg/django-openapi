@@ -18,6 +18,17 @@
         body {
             margin: 0;
         }
+
+        .footer {
+            margin-bottom: 25px;
+            color: #cccccc;
+            font-size: 12px;
+            display: flex;
+        }
+
+        .footer .powered-by {
+            float: right;
+        }
     </style>
 </head>
 <body>
@@ -72,5 +83,12 @@
         };
     </script>
 {% endif %}
+<div class="swagger-ui footer">
+    <div class="wrapper">
+        <span class="powered-by">
+            [Powered by <a target="_blank" href="https://github.com/Dog-Egg/django-openapi">Django-OpenAPI</a>]
+        </span>
+    </div>
+</div>
 </body>
 </html>
