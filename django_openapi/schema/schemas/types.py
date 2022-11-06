@@ -1,3 +1,4 @@
+import sys
 import copy
 import datetime
 import hashlib
@@ -9,11 +10,12 @@ from collections.abc import Iterable
 from dateutil.parser import isoparse
 from django.conf import settings
 from django.utils import timezone
+from django.utils.functional import SimpleLazyObject
 
 from django_openapi.parameters.style import Style
 from django_openapi.schema import validators as _validators
 from django_openapi.schema.exceptions import ValidationError
-from django_openapi.utils.functional import Filter, make_schema, make_instance, Getter
+from django_openapi.utils.functional import Filter, make_schema, make_instance, Getter, import_string
 from django_openapi.spec import utils as _spec
 
 EMPTY = type('empty', (), {})()
@@ -737,3 +739,27 @@ class File(BaseSchema):
 
 class Path(String):
     pass
+
+
+# noinspection PyAbstractClass
+class Ref(BaseSchema):
+    def __init__(self, ref: str, **kwargs):
+        module = self.__get_called_module()
+        self.ref: BaseSchema = SimpleLazyObject(  # type: ignore
+            lambda: import_string(ref, default_module=module.__name__)(**kwargs))
+        super().__init__(**kwargs)
+
+    @staticmethod
+    def __get_called_module():
+        # noinspection PyUnresolvedReferences,PyProtectedMember
+        frame = sys._getframe(2)
+        return inspect.getmodule(frame)
+
+    def serialize(self, value):
+        return self.ref.serialize(value)
+
+    def deserialize(self, value):
+        return self.ref.deserialize(value)
+
+    class Meta:
+        data_type = 'object'

@@ -14,6 +14,7 @@ from .types import (
     File,
     Any,
     Password,
+    Ref,
 )
 from .mixed import (
     OneOf,

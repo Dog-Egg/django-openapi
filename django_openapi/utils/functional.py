@@ -1,3 +1,4 @@
+import importlib
 import inspect
 import operator
 from typing import Mapping
@@ -61,3 +62,16 @@ class Getter:
 
     def __call__(self, name):
         return self.getter(self.obj, name)
+
+
+def import_string(obj_path: str, default_module: str = ''):
+    if ':' in obj_path:
+        module, obj = obj_path.rsplit(':', 1)
+    elif '.' in obj_path:
+        module, obj = obj_path.rsplit('.', 1)
+    else:
+        module, obj = None, obj_path
+
+    module = module or default_module
+
+    return operator.attrgetter(obj)(importlib.import_module(module))
