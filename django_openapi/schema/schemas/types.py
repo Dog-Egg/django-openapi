@@ -335,10 +335,10 @@ class Model(BaseSchema, metaclass=_ModelMeta):
     def from_dict(cls, fields: typing.Dict[str, BaseSchema]) -> typing.Type['Model']:
         attrs: dict = dict(fields)
 
-        class Meta(cls.Meta):  # type: ignore
-            register_as_component = False
+        metadata = {k: v for k, v in cls._metadata.items() if k in _INHERITABLE_METADATA}
+        metadata.update(register_as_component=False)
+        attrs['Meta'] = type('Meta', (), metadata)
 
-        attrs.setdefault('Meta', Meta)
         return typing.cast(typing.Type[Model], type('GeneratedSchema', (Model,), attrs))
 
     @classmethod

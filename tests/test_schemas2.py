@@ -241,3 +241,16 @@ class ResA(ResourceView):
         any=schemas.Any(required=False),
     )), b=Body(dict(j=schemas.Dict(schemas.Integer, schemas.Integer, required=False, example={'foo': 1})))):
         return dict(q=q, b=b)
+
+
+def test_model_from_dict_meta():
+    class Schema(schemas.Model):
+        field = schemas.Integer()
+
+        class Meta:
+            unknown_fields = 'include'
+            schema_name = '这是一个Schema'
+
+    new_schema = Schema.from_dict({})
+    assert new_schema._metadata['schema_name'] is None
+    assert new_schema._metadata['unknown_fields'] == 'include'
