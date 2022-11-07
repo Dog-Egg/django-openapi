@@ -50,3 +50,7 @@ def test_meta_unknown_fields():
         except ValidationError as exc:
             assert exc.format_errors() == {'address': ['unknown field.']}
             raise
+
+
+def test_unknown_fields_inherit():
+    assert SchemaA.partial()._metadata['unknown_fields'] == 'error'

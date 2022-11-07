@@ -335,7 +335,7 @@ class Model(BaseSchema, metaclass=_ModelMeta):
     def from_dict(cls, fields: typing.Dict[str, BaseSchema]) -> typing.Type['Model']:
         attrs: dict = dict(fields)
 
-        class Meta:
+        class Meta(cls.Meta):  # type: ignore
             register_as_component = False
 
         attrs.setdefault('Meta', Meta)
