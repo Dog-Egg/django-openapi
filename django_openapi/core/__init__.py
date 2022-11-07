@@ -320,7 +320,7 @@ class Operation:
     ):
         self._tags = tags or []
         self.summary = summary
-        self.description = description
+        self.description = _spec.clean_commonmark(description)
 
         self.response_schema: BaseSchema = response_schema and make_schema(response_schema)
         self.deprecated = deprecated
