@@ -16,7 +16,7 @@ from django_openapi.parameters.style import Style
 from django_openapi.schema import validators as _validators
 from django_openapi.schema.exceptions import ValidationError
 from django_openapi.utils.functional import Filter, make_schema, make_instance, Getter, import_string
-from django_openapi.spec import utils as _spec
+from django_openapi.spec import utils as _spec, Example
 
 EMPTY = type('empty', (), {})()
 
@@ -85,6 +85,7 @@ class BaseSchema(metaclass=_SchemaMeta):
             choices=None,
             description: str = None,  # openapi spec
             example=EMPTY,  # openapi spec
+            examples: typing.List[Example] = None,
             style: Style = None,
     ):
         self.alias = alias  # serialize: attr -> alias
@@ -105,6 +106,7 @@ class BaseSchema(metaclass=_SchemaMeta):
 
         self.description = _spec.clean_commonmark(description)
         self.example = example
+        self.examples = _spec.format_examples(examples)
 
         self.style = style or Style()
         self.style.schema = self

@@ -7,7 +7,7 @@ from django.http import HttpRequest
 from django.utils.datastructures import MultiValueDict
 
 from django_openapi.parameters.style import StyleParser
-from django_openapi.spec.utils import default_as_none
+from django_openapi.spec.utils import default_as_none, format_examples
 from django_openapi.exceptions import BadRequest, UnsupportedMediaType, RequestArgsError
 from django_openapi.schema import schemas
 from django_openapi.schema.exceptions import ValidationError
@@ -58,7 +58,8 @@ class RequestParameter(BaseRequestParameter, ABC):
                 'schema': field.to_spec(spec_id),
                 'style': style,
                 'explode': explode,
-                'allowEmptyValue': default_as_none(field.allow_blank, False)
+                'allowEmptyValue': default_as_none(field.allow_blank, False),
+                'examples': field.examples,
             })
         return dict(parameters=spec)
 
@@ -98,9 +99,10 @@ class FreeFormObject(schemas.BaseSchema):
 class Body(BaseRequestParameter):
     __limit__ = 1
 
-    def __init__(self, schema=None, *, content_type='application/json'):
+    def __init__(self, schema=None, *, content_type='application/json', examples=None):
         self.schema = make_schema(schema) if schema is not None else FreeFormObject()
         self.content_types = [content_type] if isinstance(content_type, str) else content_type
+        self._examples = format_examples(examples)
         supported_content_types = [
             'application/json',
             'multipart/form-data',
@@ -116,6 +118,7 @@ class Body(BaseRequestParameter):
 
         media_type = dict(
             schema=schema_spec,
+            examples=self._examples,
         )
 
         content = {x: media_type for x in self.content_types}

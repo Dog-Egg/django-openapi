@@ -125,3 +125,9 @@ def clean_commonmark(content: typing.Optional[str]):
     if not content:
         return
     return inspect.cleandoc(content)
+
+
+def format_examples(examples: typing.Optional[typing.List['spec.Example']]) -> typing.Optional[dict]:
+    if examples is None:
+        return None
+    return {f'Example {index + 1}': item for index, item in enumerate(examples)}

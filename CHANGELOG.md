@@ -1,3 +1,7 @@
+## 0.1a7 (dev)
+
+- 新增：支持使用 OAS ParameterObject & MediaTypeObject examples。
+
 ## 0.1a6
 
 - 新增：schema Model 参数 `unknown_fields`，支持元数据定义默认值。

@@ -1,1 +1,5 @@
-from .objects import Tag, ExternalDocs
+from .objects import (
+    Tag,
+    ExternalDocs,
+    Example,
+)

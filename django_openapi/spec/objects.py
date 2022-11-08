@@ -1,4 +1,4 @@
-from django_openapi.spec.utils import clean_commonmark
+from django_openapi.spec.utils import clean_commonmark, Skip
 from django_openapi.utils.datastructures import ImmutableDict
 
 
@@ -14,3 +14,12 @@ class Tag(ImmutableDict):
 class ExternalDocs(ImmutableDict):
     def __init__(self, url: str, description: str = None):
         super().__init__(url=url, description=clean_commonmark(description))
+
+
+class Example(ImmutableDict):
+    def __init__(self, value, *, summary: str = None, description: str = None):
+        super().__init__(
+            value=Skip(value),
+            summary=summary,
+            description=clean_commonmark(description)
+        )
