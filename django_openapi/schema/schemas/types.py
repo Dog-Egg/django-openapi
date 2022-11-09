@@ -217,9 +217,11 @@ class _ModelMeta(_SchemaMeta):
         fields = {}
 
         # inherit fields
-        for base in bases[::-1]:
+        for base in bases:
             if isinstance(base, _ModelMeta):
                 for field in base.fields:
+                    if field.name in fields:
+                        continue
                     fields[field.name] = field
 
         for name, field in attrs.copy().items():
