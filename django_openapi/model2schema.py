@@ -8,6 +8,11 @@ from django.db import models
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models.fields.files import FieldFile
 
+try:
+    from django.db.models import JSONField
+except ImportError:
+    JSONField = None
+
 from django_openapi.utils.functional import Filter
 from django_openapi.schema import schemas
 from django_openapi.schema.exceptions import ValidationError
@@ -156,6 +161,7 @@ MODEL_FIELD_CONVERTORS = {
     models.PositiveSmallIntegerField: Convertor(schemas.Integer),
     models.DecimalField: DecimalConvertor(),
     models.ForeignKey: ForeignKeyConvertor(),
+    JSONField: Convertor(schemas.Any),
 }
 if django.VERSION >= (3, 1):
     MODEL_FIELD_CONVERTORS.update({

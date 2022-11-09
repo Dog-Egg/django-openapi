@@ -116,6 +116,14 @@ class BaseSchema(metaclass=_SchemaMeta):
         if choices:
             self._validators.append(_validators.ChoicesValidator(choices))
 
+    @property
+    def args(self):
+        return self.__args
+
+    @property
+    def kwargs(self):
+        return self.__kwargs.copy()
+
     def deserialize(self, value):
         if value is None:
             if self.nullable:
