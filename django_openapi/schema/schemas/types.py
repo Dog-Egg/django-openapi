@@ -56,6 +56,13 @@ class _SchemaMeta(type):
         return super().__new__(mcs, name, bases, attrs)
 
 
+def setattribute(obj, name, value):
+    """设置没有被定义的属性"""
+    if hasattr(obj, name):
+        raise AttributeError(f"%r object already has attribute %r" % (obj.__class__.__name__, name))
+    setattr(obj, name, value)
+
+
 class BaseSchema(metaclass=_SchemaMeta):
     _metadata: dict
 
@@ -94,9 +101,11 @@ class BaseSchema(metaclass=_SchemaMeta):
         self.required = required if isinstance(required, bool) else (default is EMPTY)  # 仅反序列使用
         self.nullable = nullable
         self.default = default
-        self.serialize_preprocess = serialize_preprocess
-        self.deserialize_preprocess = deserialize_preprocess
-        self.deserialize_postprocess = deserialize_postprocess
+
+        serialize_preprocess is not None and setattribute(self, 'serialize_preprocess', serialize_preprocess)
+        deserialize_preprocess is not None and setattribute(self, 'deserialize_preprocess', deserialize_preprocess)
+        deserialize_postprocess is not None and setattribute(self, 'deserialize_postprocess', deserialize_postprocess)
+
         self._validators: typing.List[typing.Callable[[typing.Any], None]] = validators or []
         self.fallback = fallback
         self.read_only = read_only
@@ -116,6 +125,19 @@ class BaseSchema(metaclass=_SchemaMeta):
         if choices:
             self._validators.append(_validators.ChoicesValidator(choices))
 
+    def serialize_preprocess(self, value) -> typing.Any:
+        pass
+
+    def deserialize_preprocess(self, value) -> typing.Any:
+        pass
+
+    def deserialize_postprocess(self, value) -> typing.Any:
+        pass
+
+    del serialize_preprocess
+    del deserialize_preprocess
+    del deserialize_postprocess
+
     @property
     def args(self):
         return self.__args
@@ -131,7 +153,7 @@ class BaseSchema(metaclass=_SchemaMeta):
             else:
                 raise ValidationError('The value cannot be null')
 
-        if self.deserialize_preprocess:
+        if hasattr(self, 'deserialize_preprocess'):
             value = self.deserialize_preprocess(value)
 
         value = self._deserialize(value)
@@ -145,7 +167,7 @@ class BaseSchema(metaclass=_SchemaMeta):
         if error.nonempty:
             raise error
 
-        if self.deserialize_postprocess:
+        if hasattr(self, 'deserialize_postprocess'):
             value = self.deserialize_postprocess(value)
 
         return value
@@ -159,7 +181,7 @@ class BaseSchema(metaclass=_SchemaMeta):
                 if self.nullable:
                     return value
                 raise ValueError('The value cannot be None')
-            if self.serialize_preprocess:
+            if hasattr(self, 'serialize_preprocess'):
                 value = self.serialize_preprocess(value)
             return self._serialize(value)
         except Exception:

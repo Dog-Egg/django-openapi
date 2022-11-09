@@ -1,4 +1,5 @@
 """预处理/后处理"""
+import datetime
 import json
 
 import pytest
@@ -6,6 +7,7 @@ from django.db import models
 from django_openapi import Operation, model2schema
 from django_openapi.parameters import Body
 from django_openapi.schema import schemas
+from django_openapi.schema.exceptions import ValidationError
 from django_openapi.urls import reverse
 from tests.utils import TestResource, ResourceView
 
@@ -71,3 +73,30 @@ def test_like_json_api(client):
     }, content_type='application/json')
     assert resp.status_code == 200
     assert resp.json() == {'id': 1, 'array': ['a', 0, True, None], 'object': {'a': 1}}
+
+
+def test_model_process():
+    class Schema2(schemas.Model):
+        start_time = schemas.Datetime(required=False)
+        end_time = schemas.Datetime(default=datetime.datetime.now)
+
+        def deserialize_postprocess(self, obj):
+            if 'start_time' not in obj:
+                obj['start_time'] = obj['end_time'] - datetime.timedelta(days=3)
+            elif obj['end_time'] < obj['start_time']:
+                raise ValidationError('开始时间大于了结束时间')
+            return obj
+
+    assert Schema2().deserialize({'end_time': '2022-03-13'}) == {
+        'end_time': datetime.datetime(2022, 3, 13, 0, 0),
+        'start_time': datetime.datetime(2022, 3, 10, 0, 0)
+    }
+
+    with pytest.raises(ValidationError, match='^开始时间大于了结束时间$'):
+        Schema2().deserialize({
+            'start_time': '2022-05-01',
+            'end_time': '2022-04-30',
+        })
+
+    with pytest.raises(AttributeError, match="'Schema2' object already has attribute 'deserialize_postprocess'"):
+        Schema2(deserialize_postprocess=lambda x: x)
