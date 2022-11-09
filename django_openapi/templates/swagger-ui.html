@@ -56,8 +56,6 @@
                 urls: {{ urls|safe }},
                 dom_id: '#swagger-ui',
                 deepLinking: true,
-                defaultModelExpandDepth: 2,
-                defaultModelsExpandDepth: 2,
                 presets: [
                     SwaggerUIBundle.presets.apis,
                     SwaggerUIStandalonePreset
@@ -76,8 +74,6 @@
                 {% endfor %}
                 dom_id: '#swagger-ui',
                 deepLinking: true,
-                defaultModelExpandDepth: 2,
-                defaultModelsExpandDepth: 2,
                 onComplete: onComplete,
             });
         };
