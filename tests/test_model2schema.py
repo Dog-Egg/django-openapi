@@ -113,3 +113,12 @@ def test_foreignkey():
     assert instance2.parent == instance1
 
     assert schema().serialize(instance2) == {'code': 'code', 'description': '', 'id': 2, 'parent_id': 1}
+
+
+def test_match_convertor():
+    class Model(models.Model):
+        # models.SmallIntegerField 没有在装换器匹配列表中，但是它的父类在
+        a1 = models.SmallIntegerField()
+
+    schema = model2schema(Model)
+    assert isinstance(schema.fields.a1, schemas.Integer)

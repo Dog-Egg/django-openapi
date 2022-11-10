@@ -2,6 +2,7 @@
 
 - 新增：支持使用 OAS ParameterObject & MediaTypeObject examples。
 - 更新：model2schema 支持转换 JSONField。
+- 更新：model2schema 可转换支持的 ORM 字段子类。
 
 ## 0.1a6
 

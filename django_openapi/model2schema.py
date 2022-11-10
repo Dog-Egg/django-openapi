@@ -1,4 +1,5 @@
 import functools
+import inspect
 import typing
 from decimal import Decimal
 
@@ -133,7 +134,7 @@ class FileSchema(schemas.BaseSchema):
 class ForeignKeyConvertor(Convertor):
     def convert(self, field, extra_kwargs=None):
         target_field = field.target_field
-        convertor = MODEL_FIELD_CONVERTORS.get(type(target_field))
+        convertor = match_convertor(type(target_field))
         if not convertor:
             return
 
@@ -169,6 +170,19 @@ if django.VERSION >= (3, 1):
     })
 
 
+def match_convertor(fieldclass: typing.Type[models.Field]) -> typing.Optional[Convertor]:
+    """
+    从 MODEL_FIELD_CONVERTORS 查找可以直接使用的转换器，
+    或使用 field class 父类查找是否有匹配的转换器。
+    """
+    if fieldclass in MODEL_FIELD_CONVERTORS:
+        return MODEL_FIELD_CONVERTORS[fieldclass]
+    for base in inspect.getmro(fieldclass):
+        if base in MODEL_FIELD_CONVERTORS:
+            return MODEL_FIELD_CONVERTORS[base]
+    return None
+
+
 def model2schema(
         model: typing.Type[models.Model],
         *,
@@ -186,7 +200,7 @@ def model2schema(
         model_field_name = field.attname
         if not filter_.check(model_field_name):
             continue
-        convertor = MODEL_FIELD_CONVERTORS.get(type(field))
+        convertor = match_convertor(type(field))
         if not convertor:
             continue
         fields[model_field_name] = convertor.convert(
