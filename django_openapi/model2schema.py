@@ -71,16 +71,14 @@ class Convertor:
     @staticmethod
     def get_description(field):
         contents = tuple(
-            item for item in (
+            str(item) for item in (
                 getattr(field, '_verbose_name', field.verbose_name),
-                field.help_text
+                field.help_text,
+                '\n'.join([f'- %s: %s' % (choice[0], choice[1]) for choice in field.choices or []]),
             )
             if item
         )
-        if contents:
-            if len(contents) == 1:
-                return contents[0]
-            return '%s\n\n%s' % contents
+        return '\n\n'.join(contents)
 
     def get_validators(self, validators):
         return validators
