@@ -1,4 +1,5 @@
 import typing
+from collections.abc import Mapping
 from operator import getitem
 
 
@@ -92,8 +93,9 @@ class StyleParser:
             self.key_to_getter[key] = getter
 
     def parse(self, data) -> dict:
-        rv = {}
+        assert isinstance(data, Mapping), data
+        copy_data = dict(data)
         for key, getter in self.key_to_getter.items():
             if key in data:
-                rv[key] = getter(data, key)  # type: ignore
-        return rv
+                copy_data[key] = getter(data, key)  # type: ignore
+        return copy_data

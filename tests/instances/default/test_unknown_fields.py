@@ -1,7 +1,10 @@
 import pytest
 
+from django_openapi.parameters import Query
 from django_openapi.schema import schemas
 from django_openapi.schema.exceptions import ValidationError
+from django_openapi.urls import reverse
+from tests.utils import TestResource
 
 
 class Schema(schemas.Model):
@@ -54,3 +57,36 @@ def test_meta_unknown_fields():
 
 def test_unknown_fields_inherit():
     assert SchemaA.partial()._metadata['unknown_fields'] == 'error'
+
+
+@TestResource
+class API:
+    class QuerySchema(schemas.Model):
+        a = schemas.Integer()
+
+        class Meta:
+            unknown_fields = 'error'
+
+    class QuerySchema2(QuerySchema):
+        class Meta:
+            unknown_fields = 'include'
+
+    @staticmethod
+    def get(query=Query(QuerySchema)):
+        return query
+
+    @staticmethod
+    def post(query=Query(QuerySchema2)):
+        return query
+
+
+def test_query_string_unknown_fields_error(client):
+    """测试 StyleParser.parse 不能直接清理数据，不然 QuerySchema 等无法使用 unknown_fields"""
+    response = client.get(reverse(API), data={'a': 1, 'b': [2, 3]})
+    assert response.request['QUERY_STRING'] == 'a=1&b=2&b=3'
+    assert response.json() == {'errors': {'b': ['unknown field.']}}
+
+
+def test_query_string_unknown_fields_include(client):
+    response = client.post(reverse(API) + '?a=1&b=2&b=3')
+    assert response.json() == {'a': 1, 'b': ['2', '3']}
