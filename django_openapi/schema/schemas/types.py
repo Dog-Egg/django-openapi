@@ -366,11 +366,13 @@ class Model(BaseSchema, metaclass=_ModelMeta):
         return values
 
     @classmethod
-    def from_dict(cls, fields: typing.Dict[str, BaseSchema]) -> typing.Type['Model']:
-        attrs: dict = dict(fields)
+    def from_dict(cls, fields: typing.Dict[str, BaseSchema], *, meta: dict = None) -> typing.Type['Model']:
+        # 过滤掉非 Schema 字段
+        attrs: dict = {k: v for k, v in fields.items() if isinstance(v, BaseSchema)}
 
         metadata = {k: v for k, v in cls._metadata.items() if k in _INHERITABLE_METADATA}
         metadata.update(register_as_component=False)
+        meta and metadata.update(meta)
         attrs['Meta'] = type('Meta', (), metadata)
 
         return typing.cast(typing.Type[Model], type('GeneratedSchema', (Model,), attrs))

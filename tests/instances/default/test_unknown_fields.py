@@ -61,22 +61,12 @@ def test_unknown_fields_inherit():
 
 @TestResource
 class API:
-    class QuerySchema(schemas.Model):
-        a = schemas.Integer()
-
-        class Meta:
-            unknown_fields = 'error'
-
-    class QuerySchema2(QuerySchema):
-        class Meta:
-            unknown_fields = 'include'
-
     @staticmethod
-    def get(query=Query(QuerySchema)):
+    def get(query=Query(schemas.Model.from_dict({'a': schemas.Integer()}, meta={'unknown_fields': 'error'}))):
         return query
 
     @staticmethod
-    def post(query=Query(QuerySchema2)):
+    def post(query=Query(schemas.Model.from_dict({'a': schemas.Integer()}, meta={'unknown_fields': 'include'}))):
         return query
 
 
