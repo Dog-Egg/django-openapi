@@ -355,6 +355,8 @@ class Model(BaseSchema, metaclass=_ModelMeta):
                 if field.fallback:
                     # Model 字段 fallback 返回的值，仍需要去被字段序列
                     value = field.fallback(EMPTY)
+                    if value is EMPTY:
+                        continue
                 else:
                     raise
 

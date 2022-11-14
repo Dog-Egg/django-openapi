@@ -209,3 +209,13 @@ def test_default_validators():
         'start_time': datetime.datetime(2022, 1, 1),
         'end_time': datetime.datetime(2022, 1, 2),
     }
+
+
+def test_serialize_empty_field():
+    """Model 序列化时，字段返回 Empty，将不会序列化该字段"""
+
+    class Schema(schemas.Model):
+        a = schemas.Integer()
+        b = schemas.String(fallback=lambda _: schemas.EMPTY)
+
+    assert Schema().serialize({'a': 1}) == {'a': 1}
