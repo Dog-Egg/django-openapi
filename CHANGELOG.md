@@ -1,4 +1,4 @@
-## 0.1a7 (dev)
+## 0.1a7
 
 - 新增：支持使用 OAS ParameterObject & MediaTypeObject examples。
 - 更新：model2schema 支持转换 JSONField。
