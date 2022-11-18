@@ -12,7 +12,8 @@ def test_oas_schema_description(oas):
     assert itemgetter(oas, ['components', 'schemas', 'b4e958c9.Schema1', 'description']) == 'doc 1'
     assert itemgetter(oas, 'paths./foo.get.responses.200.content.application/json.schema.properties') == {
         "s11": {
-            "$ref": "#/components/schemas/b4e958c9.Schema1"
+            'allOf': [{'$ref': '#/components/schemas/b4e958c9.Schema1'}],
+            'description': 'desc 1'
         },
         "s12": {
             "$ref": "#/components/schemas/b4e958c9.Schema1"
