@@ -1,3 +1,7 @@
+## 0.1a8
+
+- 新增：schema BaseSchema 参数 `serialize_postprocess`。
+
 ## 0.1a7
 
 - 新增：支持使用 OAS ParameterObject & MediaTypeObject examples。

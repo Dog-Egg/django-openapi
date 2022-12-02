@@ -100,3 +100,11 @@ def test_model_process():
 
     with pytest.raises(AttributeError, match="'Schema2' object already has attribute 'deserialize_postprocess'"):
         Schema2(deserialize_postprocess=lambda x: x)
+
+
+def test_serialize_postprocess():
+    class Schema2(schemas.Model):
+        uid = schemas.Integer(serialize_postprocess=str, nullable=True)
+
+    assert Schema2().serialize({'uid': 987654312123456789}) == {'uid': '987654312123456789'}
+    assert Schema2().serialize({'uid': None}) == {'uid': None}

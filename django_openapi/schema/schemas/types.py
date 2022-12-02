@@ -81,6 +81,7 @@ class BaseSchema(metaclass=_SchemaMeta):
             nullable: bool = False,
             default=EMPTY,  # only deserialize
             serialize_preprocess: typing.Callable[[typing.Any], typing.Any] = None,
+            serialize_postprocess: typing.Callable[[typing.Any], typing.Any] = None,
             deserialize_preprocess: typing.Callable[[typing.Any], typing.Any] = None,
             deserialize_postprocess: typing.Callable[[typing.Any], typing.Any] = None,
             validators: typing.List[typing.Callable[[typing.Any], None]] = None,  # only deserialize
@@ -103,6 +104,7 @@ class BaseSchema(metaclass=_SchemaMeta):
         self.default = default
 
         serialize_preprocess is not None and setattribute(self, 'serialize_preprocess', serialize_preprocess)
+        serialize_postprocess is not None and setattribute(self, 'serialize_postprocess', serialize_postprocess)
         deserialize_preprocess is not None and setattribute(self, 'deserialize_preprocess', deserialize_preprocess)
         deserialize_postprocess is not None and setattribute(self, 'deserialize_postprocess', deserialize_postprocess)
 
@@ -128,6 +130,9 @@ class BaseSchema(metaclass=_SchemaMeta):
     def serialize_preprocess(self, value) -> typing.Any:
         pass
 
+    def serialize_postprocess(self, value) -> typing.Any:
+        pass
+
     def deserialize_preprocess(self, value) -> typing.Any:
         pass
 
@@ -135,6 +140,7 @@ class BaseSchema(metaclass=_SchemaMeta):
         pass
 
     del serialize_preprocess
+    del serialize_postprocess
     del deserialize_preprocess
     del deserialize_postprocess
 
@@ -183,11 +189,17 @@ class BaseSchema(metaclass=_SchemaMeta):
                 raise ValueError('The value cannot be None')
             if hasattr(self, 'serialize_preprocess'):
                 value = self.serialize_preprocess(value)
-            return self._serialize(value)
-        except Exception:
+            value = self._serialize(value)
+        except Exception as _:
             if self.fallback:
-                return self.fallback(value)
-            raise
+                value = self.fallback(value)
+            else:
+                del _
+                raise
+
+        if hasattr(self, 'serialize_postprocess'):
+            value = self.serialize_postprocess(value)
+        return value
 
     def _serialize(self, value):
         raise NotImplementedError
