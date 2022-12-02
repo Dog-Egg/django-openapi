@@ -449,9 +449,9 @@ class Model(BaseSchema, metaclass=_ModelMeta):
 
             # 返回 Schema 引用
             ref = {'$ref': '#/components/schemas/%s' % schema_id}
-            if composite:
+            if composite or self.description:
                 # 利用 allOf 组合
-                return dict(allOf=[ref, composite])
+                return dict(allOf=[ref, composite], description=self.description)
             return ref
 
         return spec
