@@ -7,6 +7,7 @@ from django.http import HttpRequest
 from django.utils.datastructures import MultiValueDict
 
 from django_openapi.parameters.style import StyleParser
+from django_openapi.spec import Example
 from django_openapi.spec.utils import default_as_none, format_examples
 from django_openapi.exceptions import BadRequest, UnsupportedMediaType, RequestArgsError
 from django_openapi.schema import schemas
@@ -65,6 +66,7 @@ class RequestParameter(BaseRequestParameter, ABC):
 
 
 class Query(RequestParameter):
+    """从 Request Query String 中解析请求参数。"""
     location = 'query'
 
     def _parse_request(self, request):
@@ -72,6 +74,7 @@ class Query(RequestParameter):
 
 
 class Cookie(RequestParameter):
+    """从 Request Cookie 中解析请求参数。"""
     location = 'cookie'
 
     def _parse_request(self, request):
@@ -79,6 +82,7 @@ class Cookie(RequestParameter):
 
 
 class Header(RequestParameter):
+    """从 Request Header 中解析请求参数。"""
     location = 'header'
 
     def _parse_request(self, request: HttpRequest):
@@ -97,9 +101,25 @@ class FreeFormObject(schemas.BaseSchema):
 
 
 class Body(BaseRequestParameter):
+    """
+    从 Request Body 中解析请求参数。
+
+    :param schema: 参数结构。
+    :param content_type: 可以处理的请求体数据类型，可以传列表来同时支持多个类型。
+
+        目前仅支持:
+
+        * application/json
+        * multipart/form-data
+        * application/x-www-form-urlencoded
+
+        默认为 application/json。
+
+    :param examples: 在 OAS 中展示请求示例。
+    """
     __limit__ = 1
 
-    def __init__(self, schema=None, *, content_type='application/json', examples=None):
+    def __init__(self, schema=None, *, content_type='application/json', examples: typing.List[Example] = None):
         self.schema = make_schema(schema) if schema is not None else FreeFormObject()
         self.content_types = [content_type] if isinstance(content_type, str) else content_type
         self._examples = format_examples(examples)

@@ -31,15 +31,24 @@ from django_openapi.spec import utils as _spec, Tag
 
 
 class OpenAPI:
+    """
+    :param title: 对应 OAS API 标题。
+    :param description: 对应 OAS API 描述，支持 CommandMark 语法。
+    :param version: 对应 OAS API 版本。
+    :param security: (测试中)
+    :param security_schemes: (测试中)
+    :param respond: 为 :class:`Resource` 提供默认回应类。
+    """
+
     def __init__(
             self,
             *,
             title: str = 'API Document',
             description: str = None,
-            version='0.1.0',
+            version: str = '0.1.0',
             security: typing.List[typing.Dict[str, typing.List[str]]] = None,
             security_schemes: dict = None,
-            respond=_respond.Respond,
+            respond: typing.Type[_respond.Respond] = None,
     ):
         self._id: str = self.__get_id()
         self.title = title
@@ -51,7 +60,7 @@ class OpenAPI:
         self._spec_endpoint = '/apispec_%s' % self.id[:8]
         self._resources: typing.List[Resource] = []
         self._append_url(self._spec_endpoint, self.spec_view)
-        self.respond = respond
+        self.respond = respond or _respond.Respond
 
     @cached_property
     def id(self):
@@ -65,6 +74,11 @@ class OpenAPI:
         return hashlib.md5(rv.encode()).hexdigest()
 
     def add_resource(self, obj):
+        """
+        检出被 `Resource` 标记的类，并将其资源添加到 OpenAPI 实例中。
+
+        :param obj: 被 Resource 标记的对象。
+        """
         resource = Resource.checkout(obj)
         if resource is None:
             raise ValueError('%s is not marked by %s.' % (obj, Resource.__name__))
@@ -83,6 +97,17 @@ class OpenAPI:
 
     @property
     def urls(self):
+        """
+        返回可被 Django 使用的 URLs 配置。
+
+        示例:
+
+        .. code-block:: python
+
+            urlpatterns = [
+                path('api/', include(openapi.urls))
+            ]
+        """
         return self._urls
 
     def get_spec(self, request: HttpRequest = None) -> dict:
@@ -120,11 +145,27 @@ class OpenAPI:
         return JsonResponse(spec, json_dumps_params=json_dumps_params)
 
     def register_schema(self, schema):
+        """
+        注册额外的 Schema 到 OAS 组件描述中。
+
+        :param schema: 仅支持 :class:`schemas.Model <django_openapi.schema.schemas.Model>`。
+        """
         schema = make_model_schema(schema)
         schema.to_spec(self.id, need_required_field=True, schema_id=uuid.uuid4().hex)
 
 
 class Resource:
+    """
+    装饰类，将一个普通的 Python 类标记为资源，当资源被添加到 :class:`OpenAPI` 实例后会转换为 Django 视图函数。
+
+    :param path: URL路径，必须以 "/" 开头。
+    :param path_parameters: 提供路径参数结构描述，只能是一个字典的形式。
+    :param tags: 在 OAS 中为该路径下的所有请求方法添加标签。
+    :param permission: 为该资源下的所有请求方法定义权限。
+    :param view_decorators: 一个视图装饰器列表，为生成的 Django 视图函数添加视图装饰器。
+    :param include_in_spec: 是否将该资源下的所有请求方法生成到 OAS 中，默认为 `True`。
+    """
+
     HTTP_METHODS = [
         "get",
         "post",
@@ -141,8 +182,8 @@ class Resource:
             path: str,
             *,
             path_parameters: typing.Dict[str, BaseSchema] = None,
-            tags=None,
-            permission=None,
+            tags: typing.List[typing.Union[str, Tag]] = None,
+            permission: typing.Union[BasePermission, typing.Type[BasePermission]] = None,
             view_decorators: list = None,
             include_in_spec=True,
     ):
@@ -305,16 +346,31 @@ class Resource:
 
 
 class Operation:
+    """
+    装饰类，为请求方法提供额外的功能。
+
+    :param tags: 在 OAS 中为该请求方法添加标签。
+    :param summary: 在 OAS 中为该请求方法提供摘要。
+    :param description: 在 OAS 中为该请求方法提供描述，支持 CommonMark 语法。
+    :param response_schema: 为请求响应提供结构描述，该 `Schema` 可对非 `Response` 返回值进行序列化。
+    :param deprecated: 在 OAS 中展示该请求方法是否弃用，默认为 `False`。
+    :param include_in_spec: 是否将该请求方法生成到 OAS 中，默认为 `True`。
+    :param permission: 为该请求方法定义权限。
+    :param status_code: 当请求方法未返回 Response 时，这是默认的响应状态码，默认值 200。
+    :param view_decorators: 一个视图装饰器列表，为生成的 Django 视图函数添加视图装饰器，与
+        `Resource` view_decorators 不同，这些装饰器仅在对应的请求方法下有效。
+    """
+
     def __init__(
             self,
             *,
-            tags=None,
+            tags: typing.List[typing.Union[str, Tag]] = None,
             summary: str = None,
             description: str = None,
             response_schema=None,
             deprecated: bool = False,
-            include_in_spec=True,
-            permission=None,
+            include_in_spec: bool = True,
+            permission: typing.Union[BasePermission, typing.Type[BasePermission]] = None,
             status_code: int = 200,
             view_decorators: list = None,
     ):
@@ -348,12 +404,12 @@ class Operation:
 
     @cached_property
     def permission(self) -> typing.Optional[BasePermission]:
-        perm = None
+        perm: typing.Optional[BasePermission] = None
         assert self.resource
         for p in [self.resource.permission, self._permission]:
             if p is not None:
                 p = make_instance(p)
-                perm = p if perm is None else (perm & p)
+                perm = p if perm is None else (perm & p)  # type: ignore
         return perm
 
     def parse_parameters(self, handler):
@@ -372,6 +428,7 @@ class Operation:
                     raise ValueError(f'{p_cls.__name__} define {p_cls.__limit__} at most')
 
     def parse_request(self, request):
+        """解析请求参数"""
         kwargs = {}
         for name, param in self.parameters.items():
             kwargs[name] = param.parse_request(request)

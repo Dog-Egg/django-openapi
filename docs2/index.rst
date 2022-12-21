@@ -1,0 +1,4 @@
+.. toctree::
+
+    api
+    demo

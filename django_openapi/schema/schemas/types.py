@@ -64,7 +64,53 @@ def setattribute(obj, name, value):
 
 
 class BaseSchema(metaclass=_SchemaMeta):
+    """
+    所有 Schema 类型的基类，提供共有参数和方法。
+
+    :param alias: 当作为 `schemas.Model` 字段时，作为外部数据的字段名，默认同字段名。
+    :param attr: 当作为 `schemas.Model` 字段时，作为内部数据的字段名，默认同字段名。
+    :param required: 当作为 `schemas.Model` 字段时，该字段在反序列化时是否必须提供，默认为 `False`。
+    :param nullable: 序列化和反序列化时，该字段是否可为 `None`，默认为 `False`。
+    :param default: 当作为 `schemas.Model` 字段时，如果外部数据字段不存在，该值将作为默认值写入；可以提供一个无参函数，以便提供动态默认值。
+    :param serialize_preprocess: 提供序列化前置处理函数。
+    :param serialize_postprocess: 提供序列化后置处理函数。
+    :param deserialize_preprocess: 提供反序列化前置处理函数。
+    :param deserialize_postprocess: 提供反序列化后置处理函数。
+    :param validators: 数据验证器列表。
+    :param fallback: 序列化异常回退函数，当数据序列化发生错误时，会调用该函数，函数结果将作为序列化结果继续处理。
+    :param deprecated: 在 OAS 中描述字段是否已被弃用。
+    :param read_only: 声明字段是否为只读，只读字段将不会在反序列化过程中被使用，默认为 `False`。
+    :param write_only: 声明字段是否为只写，只写字段将不会在序列化过程中被使用，默认为 `False`。
+    :param allow_blank: 是否允许空字符串("")被反序列，如果为 `False`，当提供空字符串时，字段会被认为不存在，默认为 `False`。
+    :param choices: 反序列化时提供的数据必须为 choices 中的一个，否则会被认为是无效数据。
+    :param description: 在 OAS 中提供字段描述，支持 CommonMark 语法。
+    :param example: 在 OAS 中提供数据示例。
+    :param examples: 在 OAS 中提供数据示例。
+    :param style: 请求参数风格解析定义，详细查看 `Style` 类。
+    """
     _metadata: dict
+
+    class Meta:
+        """
+        Schema 元数据类
+        """
+        #:
+        data_type: typing.Optional[str]
+
+        #:
+        data_format: typing.Optional[str]
+
+        #:
+        default_validators: list
+
+        #:
+        unknown_fields: str
+
+        #:
+        register_as_component: bool
+
+        #:
+        schema_name: typing.Optional[str]
 
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls)
