@@ -1,5 +1,0 @@
--r packaging.txt
-
-pytest
-pytest-django
-requests

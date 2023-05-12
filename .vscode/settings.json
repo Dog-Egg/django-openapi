@@ -1,0 +1,31 @@
+{
+    "files.exclude": {
+        "**/__pycache__": true,
+        ".tox": true,
+        "**/.pytest_cache": true,
+        ".venv/": true,
+        "**/*.egg-info": true,
+    },
+    "python.terminal.activateEnvironment": true,
+    "search.exclude": {
+        "**/.git": true,
+        "docs/src/_static": true,
+        "src/django_openapi/templates/_static": true,
+    },
+    "python.analysis.typeCheckingMode": "basic",
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": true
+        },
+    },
+    "isort.args":["--profile", "black"],
+    "python.formatting.provider": "black",
+    "python.analysis.extraPaths": [
+        "./src"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "todo-tree.tree.scanMode": "workspace only"
+}
