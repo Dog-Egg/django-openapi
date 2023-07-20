@@ -5,6 +5,7 @@ import uuid
 from html import escape
 
 import django
+import jinja2
 from django.apps import apps
 from django.conf import settings
 from docutils import nodes
@@ -13,6 +14,8 @@ from jinja2 import Template
 
 with open(os.path.join(os.path.dirname(__file__), "swagger-ui.j2")) as fp:
     template = Template(fp.read())
+
+template.environment.policies["json.dumps_kwargs"] = {"sort_keys": False}
 
 
 class OpenAPIView(Directive):

@@ -7,7 +7,7 @@ from collections.abc import Iterable, Mapping
 
 from dateutil.parser import isoparse
 
-from . import _validators, spectools
+from . import _validators
 from .constants import EMPTY
 from .exceptions import ValidationError
 from .spectools.utils import default_as_none
@@ -743,7 +743,9 @@ class Any(Schema):
         return value
 
     def __openapispec__(self, spec):
-        return spectools.Protect(super().__openapispec__(spec))
+        from .spectools.objects import Protect
+
+        return Protect(super().__openapispec__(spec))
 
 
 class List(Schema):
