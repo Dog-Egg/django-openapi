@@ -8,15 +8,19 @@ from django_openapi import schema
 def django_validator_wraps(fn):
     """把 Django 的验证器包装成 Schema 验证器，验证失败将抛出 `ValidationError <django_openapi.schema.ValidationError>` 异常对象。
 
-    >>> from django.core.validators import validate_email
-    >>> validate = django_validator_wraps(validate_email)
+    .. doctest::
 
-    >>> validate('123@example.com') # That's right
+        >>> from django.core.validators import validate_email
+        >>> from django_openapi.utils.django import django_validator_wraps
 
-    >>> validate('example@@')
-    Traceback (most recent call last):
-        ...
-    django_openapi_schema.exceptions.ValidationError: {'msgs': ['Enter a valid email address.']}
+        >>> validate = django_validator_wraps(validate_email)
+
+        >>> validate('123@example.com') # That's right
+
+        >>> validate('example@@')
+        Traceback (most recent call last):
+            ...
+        django_openapi_schema.exceptions.ValidationError: {'msgs': ['Enter a valid email address.']}
     """
 
     @functools.wraps(fn)

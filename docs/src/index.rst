@@ -10,10 +10,10 @@ Django—OpenAPI
     api
 
 .. toctree::
+    :glob:
     :caption: Schema
 
-    schema/model
-    schema/deserialize
+    schema/*
 
 
 .. toctree::

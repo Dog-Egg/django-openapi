@@ -13,7 +13,12 @@ sys.path.extend(
 project = "Django-OpenAPI"
 
 # General configuration
-extensions = ["openapiview", "sphinx.ext.intersphinx", "sphinx.ext.autodoc"]
+extensions = [
+    "openapiview",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.doctest",
+]
 default_role = "py:obj"
 rst_epilog = """
 .. |OAS| replace:: `OpenAPI Specification <https://spec.openapis.org/oas/v3.0.3>`__
