@@ -3,7 +3,6 @@ import contextlib
 import json
 import re
 import typing as t
-from collections import ChainMap
 
 from django.http import HttpRequest
 from django.utils.datastructures import MultiValueDict
@@ -194,17 +193,6 @@ class Header(RequestParameter):
         return self._schema.deserialize((request.headers))
 
 
-class FreeFormObject(_schema.Schema):
-    class Meta:
-        data_type = "object"
-
-    def _serialize(self, obj):
-        return obj
-
-    def _deserialize(self, obj):
-        return obj
-
-
 class MediaType:
     def __init__(self, schema) -> None:
         self.__schema = make_schema(schema)
@@ -240,28 +228,29 @@ class MediaType:
 
 
 class Body(BaseRequestParameter):
+    """
+    :param content_type: 请求体内容类型，默认是: application/json。也可以设置为列表，以支持多种请求体类型。
+    """
+
     def __init__(
         self,
         schema,
         *,
         # content: t.Optional[t.Dict[str, MediaType]] = None,
-        content_type: t.Optional[str] = None,
+        content_type: t.Union[str, t.List[str]] = "application/json",
         description: str = "",
         # required: bool = True,
     ):
-        # if schema is not None and content is not None:
-        #     raise ValueError("Only one of 'schema' and 'content' can be set.")
         schema = make_schema(schema)
 
-        if content_type is None:
-            content_type = (
-                "application/octet-stream"
-                if isinstance(schema, _schema.File)
-                else "application/json"
-            )
+        if isinstance(content_type, str):
+            content_type_list = [content_type]
+        else:
+            content_type_list = content_type
 
-        content = {content_type: MediaType(schema)}
-        self.__content: t.Dict[str, MediaType] = content
+        self.__content: t.Dict[str, MediaType] = {
+            item: MediaType(schema) for item in content_type_list
+        }
 
         self.__required = True
         self.__description = clean_commonmark(description)

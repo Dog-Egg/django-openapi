@@ -27,6 +27,7 @@ __all__ = (
     "Dict",
     "Any",
     "AnyOf",
+    "Password",
 )
 
 
@@ -884,3 +885,8 @@ class AnyOf(Schema):
     def __init__(self, schemas: t.List[Schema], **kwargs) -> None:
         super().__init__(**kwargs)
         self.__schemas = schemas
+
+
+class Password(String):
+    class Meta:
+        data_format = "password"

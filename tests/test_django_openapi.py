@@ -57,3 +57,34 @@ def test_Body_upload_mulitple_files(rf):
     assert isinstance(files, list)
     assert len(files) == 2
     assert all(isinstance(i, UploadedFile) for i in files)
+
+
+def test_Body_multiple_content_types(rf):
+    """测试请求体同时支持多个 Content-Type"""
+
+    body = Body(
+        {
+            "username": schema.String(),
+            "password": schema.Password(),
+        },
+        content_type=[
+            "multipart/form-data",
+            "application/json",
+        ],
+    )
+
+    # form-data
+    req = rf.post(
+        "/",
+        data={"username": "username", "password": "pwd"},
+    )
+    assert body.parse_request(req) == {"username": "username", "password": "pwd"}
+
+    # json
+    assert body.parse_request(
+        rf.post(
+            "/",
+            {"username": "username", "password": "pwd"},
+            content_type="application/json",
+        )
+    ) == {"username": "username", "password": "pwd"}
