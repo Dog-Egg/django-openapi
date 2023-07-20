@@ -29,28 +29,44 @@ from django_openapi.utils.functional import (
     make_model_schema,
     make_schema,
 )
-from django_openapi_schema.spectools import OpenAPISpec
+from django_openapi_schema.spectools.objects import OpenAPISpec
 
 from . import respond as _respond
 
 
 class OpenAPI:
+    """
+    :param info: OAS `Info Object <https://spec.openapis.org/oas/v3.0.3#info-object>`_，该对象提供有关 API 的元数据。
+
+        默认值：
+
+        .. code-block::
+
+            {
+                "title": "API Document",
+                "version": "0.1.0"
+            }
+
+    """
+
     def __init__(
         self,
         *,
-        title: str = "API Document",
-        description: t.Optional[str] = None,
-        version="0.1.0",
+        info: t.Optional[dict] = None,
         security: t.Optional[t.List[t.Dict[str, t.List[str]]]] = None,
         security_schemes: t.Optional[dict] = None,
         respond=_respond.Respond,
     ):
-        self._spec = OpenAPISpec()
+        self.__spec = OpenAPISpec(
+            info=info
+            if info is not None
+            else {
+                "title": "API Document",
+                "version": "0.1.0",
+            }
+        )
 
         self._id: str = self.__get_id()
-        self.title = title
-        self._description = _spec.clean_commonmark(description)
-        self._version = version
         self._urls: t.List[django.urls.URLPattern] = []
         self._security = security
         self._security_schemas = security_schemes
@@ -62,6 +78,10 @@ class OpenAPI:
     @cached_property
     def id(self):
         return self._id
+
+    @property
+    def title(self):
+        return self.__spec.title
 
     @staticmethod
     def __get_id():
@@ -86,7 +106,7 @@ class OpenAPI:
         view = resource.as_view()
         self._append_url(resource._django_path, view)
 
-        self._spec.add_path(resource._openapi_path, resource)
+        self.__spec.add_path(resource._openapi_path, resource)
 
     def _append_url(self, path, *args, **kwargs):
         path = path.lstrip("/")
@@ -97,7 +117,7 @@ class OpenAPI:
         return self._urls
 
     def get_spec(self) -> dict:
-        return self._spec.to_dict()
+        return self.__spec.to_dict()
 
     def spec_view(self, request):
         oas = self.get_spec()

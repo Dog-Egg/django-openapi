@@ -10,7 +10,7 @@ from dateutil.parser import isoparse
 from . import _validators, spectools
 from .constants import EMPTY
 from .exceptions import ValidationError
-from .spectools import default_as_none
+from .spectools.utils import default_as_none
 from .utils import make_instance
 from .utils.hook import HookClassMeta, get_hook, iter_hooks
 

@@ -3,14 +3,13 @@ from collections import defaultdict
 
 from django.shortcuts import render
 from django.urls import reverse_lazy
-from django.utils.datastructures import OrderedSet
 
 from django_openapi import OpenAPI
 
 
 def swagger_ui(*openapi: OpenAPI):
     name_to_oas: typing.Dict[str, typing.List[OpenAPI]] = defaultdict(list)
-    for oa in OrderedSet(openapi):
+    for oa in openapi:
         name_to_oas[oa.title].append(oa)
 
     urls = []

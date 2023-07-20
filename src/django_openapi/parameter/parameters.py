@@ -17,7 +17,7 @@ from django_openapi.exceptions import (
 )
 from django_openapi.spec.utils import default_as_none
 from django_openapi.utils.functional import make_model_schema, make_schema
-from django_openapi_schema.spectools import clean_commonmark
+from django_openapi_schema.spectools.utils import clean_commonmark
 
 from .style import Style, StyleHandler
 

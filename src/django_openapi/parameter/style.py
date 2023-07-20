@@ -119,6 +119,7 @@ class StyleHandler:
         ("path", "simple", True, "array"): _split_by_comma,
         ("path", "simple", False, "object"): _split_by_comma_object,
         ("path", "simple", True, "object"): _split_by_comma_object2,
+        ("header", "simple", False, "primitive"): _unchange,
     }
 
 
