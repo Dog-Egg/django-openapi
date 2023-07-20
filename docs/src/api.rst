@@ -46,6 +46,7 @@ Schemas
 .. autoclass:: List
 .. autoclass:: Dict
 .. autoclass:: Any
+.. autoclass:: File
 .. autoclass:: AnyOf
 
 Exceptions

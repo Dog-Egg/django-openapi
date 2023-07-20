@@ -15,7 +15,7 @@ def main(version):
     dirname = os.path.realpath(
         os.path.join(
             os.path.dirname(__file__),
-            f"../src/django_openapi/static/swagger-ui/{version}",
+            f"../src/django_openapi/templates/_static/",
         )
     )
 

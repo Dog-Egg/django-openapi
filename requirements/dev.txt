@@ -1,6 +1,0 @@
-furo
-docutils
-Jinja2
-
-django
-python-dateutil
