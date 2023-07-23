@@ -7,19 +7,17 @@ import os
 import re
 import sys
 import typing as t
-import uuid
-from collections import defaultdict
 from http import HTTPStatus
 
 import django.urls
 from django.conf import settings
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpResponse
 from django.http.response import HttpResponseBase, JsonResponse
 from django.utils.functional import cached_property
 from django.views.decorators.csrf import csrf_exempt
 
 from django_openapi import schema
-from django_openapi.exceptions import MethodNotAllowed, NotFound
+from django_openapi.exceptions import MethodNotAllowed
 from django_openapi.parameter.parameters import MountPoint, Path
 from django_openapi.permissions import BasePermission
 from django_openapi.spec import Tag
@@ -32,6 +30,12 @@ from django_openapi.utils.functional import (
 from django_openapi_schema.spectools.objects import OpenAPISpec
 
 from . import respond as _respond
+
+
+def _get_id():
+    frame = inspect.getframeinfo(sys._getframe(2))
+    rv = "%s:%s" % (os.path.relpath(frame.filename), frame.lineno)
+    return hashlib.md5(rv.encode()).hexdigest()
 
 
 class OpenAPI:
@@ -53,9 +57,6 @@ class OpenAPI:
         self,
         *,
         info: t.Optional[dict] = None,
-        security: t.Optional[t.List[t.Dict[str, t.List[str]]]] = None,
-        security_schemes: t.Optional[dict] = None,
-        respond=_respond.Respond,
     ):
         self.__spec = OpenAPISpec(
             info=info
@@ -66,29 +67,23 @@ class OpenAPI:
             }
         )
 
-        self._id: str = self.__get_id()
-        self._urls: t.List[django.urls.URLPattern] = []
-        self._security = security
-        self._security_schemas = security_schemes
-        self._spec_endpoint = "/apispec_%s" % self.id[:8]
-        self._resources: t.List[Resource] = []
-        self._append_url(self._spec_endpoint, self.spec_view)
-        self.respond = respond
-
-    @cached_property
-    def id(self):
-        return self._id
+        self.__id: str = _get_id()
+        self.__urls: t.List[django.urls.URLPattern] = []
+        self.__spec_endpoint = "/apispec_%s" % self.__id[:8]
+        self.__resources: t.List[Resource] = []
+        self.__append_url(self.__spec_endpoint, self.spec_view)
+        self.respond = _respond.Respond
 
     @property
     def title(self):
         return self.__spec.title
 
-    @staticmethod
-    def __get_id():
-        # noinspection PyProtectedMember,PyUnresolvedReferences
-        frame = inspect.getframeinfo(sys._getframe(2))
-        rv = "%s:%s" % (os.path.relpath(frame.filename), frame.lineno)
-        return hashlib.md5(rv.encode()).hexdigest()
+    def add_resources(self, module):
+        """从模块中查找资源并添加。"""
+        from django_openapi.utils.project import find_resources
+
+        for res in find_resources(module):
+            self.add_resource(res)
 
     def add_resource(self, obj):
         if isinstance(obj, Resource):
@@ -101,27 +96,27 @@ class OpenAPI:
         assert resource.root is None
         resource.root = self
 
-        self._resources.append(resource)
+        self.__resources.append(resource)
 
         view = resource.as_view()
-        self._append_url(resource._django_path, view)
+        self.__append_url(resource._django_path, view)
 
         self.__spec.add_path(resource._openapi_path, resource)
 
-    def _append_url(self, path, *args, **kwargs):
+    def __append_url(self, path, *args, **kwargs):
         path = path.lstrip("/")
-        self._urls.append(django.urls.path(path, *args, **kwargs))
+        self.__urls.append(django.urls.path(path, *args, **kwargs))
 
     @property
     def urls(self):
-        return self._urls
+        return self.__urls
 
     def get_spec(self) -> dict:
         return self.__spec.to_dict()
 
     def spec_view(self, request):
         oas = self.get_spec()
-        prefix = request.path[: -len(self._spec_endpoint)]
+        prefix = request.path[: -len(self.__spec_endpoint)]
         if prefix:
             oas.update(servers=[{"url": prefix}])
         json_dumps_params = dict(indent=2, ensure_ascii=False) if settings.DEBUG else {}

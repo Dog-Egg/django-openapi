@@ -8,6 +8,7 @@ Django OpenAPI
 
 
 .. autoclass:: OpenAPI
+    :members:
 .. autoclass:: Resource
     :members:
 .. autoclass:: Operation
@@ -72,7 +73,5 @@ Utils
 -----
 
 .. autofunction:: django_openapi.utils.django.django_validator_wraps
-
-.. autofunction:: django_openapi.utils.project.find_resources
 
 .. |AsField| replace:: **\*仅作为字段时有效\***
