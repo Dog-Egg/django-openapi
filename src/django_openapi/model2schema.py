@@ -119,7 +119,8 @@ class ForeignKeyConvertor(Convertor):
             return
 
         kwargs = self.get_common_kwargs(field)
-        extra_kwargs and kwargs.update(extra_kwargs)
+        if extra_kwargs:
+            kwargs.update(extra_kwargs)
         return convertor.convert(target_field, extra_kwargs=kwargs)
 
 
@@ -141,8 +142,8 @@ MODEL_FIELD_CONVERTORS = {
     # models.IntegerField: Convertor(schemas.Integer),
     # models.PositiveIntegerField: Convertor(schemas.Integer),
     # models.PositiveSmallIntegerField: Convertor(schemas.Integer),
-    # models.DecimalField: DecimalConvertor(),
-    # models.ForeignKey: ForeignKeyConvertor(),
+    models.DecimalField: DecimalConvertor(),
+    models.ForeignKey: ForeignKeyConvertor(),
     # JSONField: Convertor(schema.Any),
 }
 if django.VERSION >= (3, 1):
@@ -170,18 +171,16 @@ def model2schema(
     model: typing.Type[models.Model],
     *,
     include_fields=None,
-    exclude_fields=None,
     extra_kwargs=None,
 ) -> typing.Type[schema.Model]:
     extra_kwargs = extra_kwargs or {}
 
     fields = {}
-    filter_ = Filter(include_fields, exclude_fields)
     # noinspection PyUnresolvedReferences,PyProtectedMember
     for field in model._meta.fields:
         field: models.Field  # type: ignore
         model_field_name = field.attname
-        if not filter_.check(model_field_name):
+        if include_fields is not None and model_field_name not in include_fields:
             continue
         convertor = match_convertor(type(field))
         if not convertor:
