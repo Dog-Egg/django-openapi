@@ -79,6 +79,7 @@ class OpenAPISpec:
     def __init__(self, *, info):
         self.__paths = {}
         self.__info = InfoObjectSchema().deserialize(info)
+        self.__security_schemes = {}
 
     @property
     def title(self):
@@ -87,12 +88,18 @@ class OpenAPISpec:
     def add_path(self, path, obj):
         self.__paths[path] = self.parse(obj)
 
+    def add_security(self, data: dict):
+        self.__security_schemes.update(data)
+
     def to_dict(self):
         return clean(
             {
                 "openapi": "3.0.3",
                 "info": self.__info,
                 "paths": self.__paths,
+                "components": {
+                    "securitySchemes": self.__security_schemes,
+                },
             }
         )
 

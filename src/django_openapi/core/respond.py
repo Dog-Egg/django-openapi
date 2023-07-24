@@ -1,4 +1,4 @@
-from django.http.response import HttpResponseBase, HttpResponse, JsonResponse
+from django.http.response import HttpResponse, HttpResponseBase, JsonResponse
 
 from django_openapi import exceptions
 
@@ -36,17 +36,17 @@ class Respond(BaseRespond):
         if isinstance(e, exceptions.RequestArgsError):
             return JsonResponse({"errors": e.errors}, status=400)
 
-        if isinstance(e, exceptions.BadRequest):
+        if isinstance(e, exceptions.BadRequestError):
             return make_response(400)
-        if isinstance(e, exceptions.Unauthorized):
+        if isinstance(e, exceptions.UnauthorizedError):
             return make_response(401)
-        if isinstance(e, exceptions.Forbidden):
+        if isinstance(e, exceptions.ForbiddenError):
             return make_response(403)
-        if isinstance(e, exceptions.NotFound):
+        if isinstance(e, exceptions.NotFoundError):
             return make_response(404)
-        if isinstance(e, exceptions.MethodNotAllowed):
+        if isinstance(e, exceptions.MethodNotAllowedError):
             return make_response(405)
-        if isinstance(e, exceptions.UnsupportedMediaType):
+        if isinstance(e, exceptions.UnsupportedMediaTypeError):
             return make_response(415)
 
         raise e

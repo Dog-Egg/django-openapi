@@ -1,7 +1,7 @@
 from django.db import models
 
 from django_openapi import Operation, Resource, model2schema, schema
-from django_openapi.exceptions import NotFound
+from django_openapi.exceptions import NotFoundError
 from django_openapi.pagination import PagePagination
 from django_openapi.parameter import Body
 
@@ -37,7 +37,7 @@ class BookItemAPI:
         try:
             self.book = Book.objects.get(id=book_id)
         except Book.DoesNotExist:
-            raise NotFound
+            raise NotFoundError
 
     @Operation(response_schema=BookSchema)
     def get(self):

@@ -9,9 +9,18 @@ DATABASES = {
 }
 
 INSTALLED_APPS = [
+    "django.contrib.contenttypes",
+    "django.contrib.auth",
+    "django.contrib.sessions",
     "tests",
     "docs.src.django_openapi.pagination",
     "docs.src.examples",
 ]
 
 USE_TZ = True
+
+
+MIDDLEWARE = [
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+]

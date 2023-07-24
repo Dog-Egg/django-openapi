@@ -1,31 +1,27 @@
-import typing
-from django.http.response import HttpResponseBase, HttpResponse
-
-
 class RequestArgsError(Exception):
     def __init__(self, errors):
         self.errors = errors
 
 
-class BadRequest(Exception):
-    pass
+class BadRequestError(Exception):
+    """HTTP 400"""
 
 
-class NotFound(Exception):
-    pass
+class NotFoundError(Exception):
+    """HTTP 404"""
 
 
-class Unauthorized(Exception):
-    pass
+class UnauthorizedError(Exception):
+    """HTTP 401"""
 
 
-class MethodNotAllowed(Exception):
-    pass
+class MethodNotAllowedError(Exception):
+    """HTTP 405"""
 
 
-class Forbidden(Exception):
-    pass
+class ForbiddenError(Exception):
+    """HTTP 403"""
 
 
-class UnsupportedMediaType(Exception):
-    pass
+class UnsupportedMediaTypeError(Exception):
+    """HTTP 415"""

@@ -9,10 +9,10 @@ from django.utils.datastructures import MultiValueDict
 
 from django_openapi import schema as _schema
 from django_openapi.exceptions import (
-    BadRequest,
-    NotFound,
+    BadRequestError,
+    NotFoundError,
     RequestArgsError,
-    UnsupportedMediaType,
+    UnsupportedMediaTypeError,
 )
 from django_openapi.spec.utils import default_as_none
 from django_openapi.utils.functional import make_model_schema, make_schema
@@ -71,7 +71,7 @@ class Path:
             try:
                 kwargs[param] = schema.deserialize(value)
             except _schema.ValidationError:
-                raise NotFound
+                raise NotFoundError
         return kwargs
 
     def __openapispec__(self, spec):
@@ -207,7 +207,7 @@ class MediaType:
             try:
                 data = json.loads(request.body)
             except (json.JSONDecodeError, TypeError):
-                raise BadRequest
+                raise BadRequestError
         else:
             combine = MultiValueDict()
             combine.update(request.POST)
@@ -266,7 +266,7 @@ class Body(BaseRequestParameter):
 
     def _parse_request(self, request: HttpRequest):
         if request.content_type not in self.__content:
-            raise UnsupportedMediaType
+            raise UnsupportedMediaTypeError
         return self.__content[request.content_type].parse_request(request)
 
 

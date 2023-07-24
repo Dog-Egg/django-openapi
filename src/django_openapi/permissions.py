@@ -1,10 +1,8 @@
-import typing
-
+from django.conf import settings
 from django.http import HttpRequest
 
-from django_openapi.spec import utils as _spec
-from django_openapi.exceptions import Forbidden, Unauthorized
-from django_openapi.utils.functional import make_instance
+from django_openapi_schema.spectools.objects import OpenAPISpec, Protect
+from django_openapi_schema.utils import make_instance
 
 
 class _OperationMixin:
@@ -20,73 +18,75 @@ class _OperationMixinMeta(_OperationMixin, type):
 
 
 class BasePermission(_OperationMixin, metaclass=_OperationMixinMeta):
-    security: typing.Optional[list] = None
+    """
+    权限基类。
+    """
 
-    def check_permission(self, request):
+    def has_permission(self, request) -> bool:
         raise NotImplementedError
 
-    def to_spec(self, spec_id):
-        if self.security is not None:
-            return self.security
-        return _spec.Collection(spec_id).security or [{"_$unknown$_": []}]
+    def __openapispec__(self, spec: OpenAPISpec):
+        key = "__auth__"
+        spec.add_security(
+            {
+                key: {
+                    "type": "apiKey",
+                    "name": settings.SESSION_COOKIE_NAME,
+                    "in": "cookie",
+                },
+            }
+        )
+        return [{key: Protect([])}]
 
 
 class _AndOperation(BasePermission):
     def __init__(self, p1, p2):
-        self.p1 = make_instance(p1)
-        self.p2 = make_instance(p2)
+        self.__p1 = make_instance(p1)
+        self.__p2 = make_instance(p2)
 
-    def check_permission(self, request):
-        self.p1.check_permission(request)
-        self.p2.check_permission(request)
+    def has_permission(self, request):
+        return self.__p1.has_permission(request) and self.__p2.has_permission(request)
 
 
 class _OrOperation(BasePermission):
     def __init__(self, p1, p2):
-        self.p1 = make_instance(p1)
-        self.p2 = make_instance(p2)
+        self.__p1 = make_instance(p1)
+        self.__p2 = make_instance(p2)
 
-    def check_permission(self, request):
-        errors = []
-        for p in (self.p1, self.p2):
-            try:
-                p.check_permission(request)
-            except Exception as e:
-                errors.append(e)
-            else:
-                return
-        raise errors[-1]
+    def has_permission(self, request):
+        return self.__p1.has_permission(request) or self.__p2.has_permission(request)
 
 
-class BaseDjangoUserAuth(BasePermission):
-    def has_permission(self, request: HttpRequest):
-        raise NotImplementedError
-
-    def check_permission(self, request):
-        if not self.has_permission(request):
-            if request.user and request.user.is_authenticated:
-                raise Forbidden
-            raise Unauthorized
-
-
-class IsAuthenticated(BaseDjangoUserAuth):
-    def has_permission(self, request: HttpRequest):
-        return request.user and request.user.is_authenticated
-
-
-class IsSuperuser(BaseDjangoUserAuth):
-    def has_permission(self, request: HttpRequest):
-        return request.user and request.user.is_superuser  # type: ignore
-
-
-class IsAdministrator(BaseDjangoUserAuth):
-    def has_permission(self, request: HttpRequest):
-        return request.user and request.user.is_staff  # type: ignore
-
-
-class HasPermission(BaseDjangoUserAuth):
-    def __init__(self, perm):
-        self.perm = perm
+class IsAuthenticated(BasePermission):
+    """验证用户是否登录。"""
 
     def has_permission(self, request: HttpRequest):
-        return request.user and request.user.has_perm(self.perm)  # type: ignore
+        return request.user.is_authenticated
+
+
+class IsSuperuser(BasePermission):
+    """验证用户是否为超级管理员。"""
+
+    def has_permission(self, request: HttpRequest):
+        return request.user.is_superuser  # type: ignore
+
+
+class IsAdministrator(BasePermission):
+    """验证用户是否为管理员。"""
+
+    def has_permission(self, request: HttpRequest):
+        return request.user.is_staff  # type: ignore
+
+
+class HasPermission(BasePermission):
+    """
+    验证用户是否拥有某权限。内部调用 ``request.user.has_perm`` 方法。
+
+    :param perm: 描述权限的字符串，格式是 "<app label>.<permission codename>"。
+    """
+
+    def __init__(self, perm: str):
+        self.__perm = perm
+
+    def has_permission(self, request: HttpRequest):
+        return request.user.has_perm(self.__perm)  # type: ignore

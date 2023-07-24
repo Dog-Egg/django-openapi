@@ -4,7 +4,6 @@ import hashlib
 import inspect
 import itertools
 import os
-import re
 import sys
 import typing as t
 from http import HTTPStatus
@@ -17,17 +16,18 @@ from django.utils.functional import cached_property
 from django.views.decorators.csrf import csrf_exempt
 
 from django_openapi import schema
-from django_openapi.exceptions import MethodNotAllowed
+from django_openapi.exceptions import (
+    ForbiddenError,
+    MethodNotAllowedError,
+    UnauthorizedError,
+)
 from django_openapi.parameter.parameters import MountPoint, Path
 from django_openapi.permissions import BasePermission
 from django_openapi.spec import Tag
 from django_openapi.spec import utils as _spec
-from django_openapi.utils.functional import (
-    make_instance,
-    make_model_schema,
-    make_schema,
-)
+from django_openapi.utils.functional import make_model_schema, make_schema
 from django_openapi_schema.spectools.objects import OpenAPISpec
+from django_openapi_schema.utils import make_instance
 
 from . import respond as _respond
 
@@ -131,6 +131,7 @@ class Resource:
     """
     :param path: 资源 URL，必须以 "/" 开头。
     :param include_in_spec: 是否将当前资源解析到 |OAS| 中，默认为 `True`。
+    :param permission: 为其下的所有 `Operation` 设置权限。
     """
 
     HTTP_METHODS = [
@@ -148,9 +149,8 @@ class Resource:
         self,
         path: t.Union[str, Path],
         *,
-        path_parameters: t.Optional[t.Dict[str, schema.Schema]] = None,
         tags=None,
-        permission=None,
+        permission: t.Union[BasePermission, t.Type[BasePermission], None] = None,
         view_decorators: t.Optional[list] = None,
         include_in_spec: bool = True,
     ):
@@ -158,10 +158,11 @@ class Resource:
             path = Path(path)
         self.__path: Path = path
 
-        self.operations: t.Dict[str, Operation] = {}
-        self.path_parameters = path_parameters or {}
+        self.__operations: t.Dict[str, Operation] = {}
         self.tags = tags or []
-        self.permission = permission
+        self._permission: t.Optional[BasePermission] = permission and make_instance(
+            permission
+        )
         self.root: t.Optional[OpenAPI] = None
         self.view_decorators = view_decorators or []
         self.include_in_spec = include_in_spec
@@ -183,8 +184,8 @@ class Resource:
 
             return decorator
 
-        for method, operation in self.operations.items():
-            for d in operation.view_decorators:
+        for method, operation in self.__operations.items():
+            for d in operation._view_decorators:
                 yield operation_decorator(d, method.upper())
 
     __marked: t.Dict[t.Any, "Resource"] = {}
@@ -208,10 +209,10 @@ class Resource:
                 operation(handler)
 
             operation = copy.copy(operation)
-            self.operations[method] = operation
+            self.__operations[method] = operation
 
-            assert operation.resource is None
-            operation.resource = self
+            assert operation._resource is None
+            operation._resource = self
 
         return klass
 
@@ -253,9 +254,9 @@ class Resource:
             )
             handler = getattr(instance, method)
         else:
-            raise MethodNotAllowed  # raise 405
+            raise MethodNotAllowedError  # raise 405
 
-        operation = self.operations[method]
+        operation = self.__operations[method]
         return operation.wrapped_invoke(handler, request)  # raise 401 403 ...
 
     @property
@@ -270,7 +271,7 @@ class Resource:
         if not self.include_in_spec:
             return
         result = {}
-        for method, operation in self.operations.items():
+        for method, operation in self.__operations.items():
             result[method] = _spec.merge(
                 {"parameters": spec.parse(self.__path)}, spec.parse(operation)
             )
@@ -281,6 +282,7 @@ class Operation:
     """
     :param include_in_spec: 是否将当前操作解析到 |OAS| 中，默认为 `True`。
     :param summary: 用于设置 |OAS| 操作对象摘要。
+    :param permission: 设置操作请求权限。
     """
 
     def __init__(
@@ -294,34 +296,32 @@ class Operation:
         ] = None,
         deprecated: bool = False,
         include_in_spec: bool = True,
-        permission=None,
+        permission: t.Union[BasePermission, t.Type[BasePermission], None] = None,
         status_code: int = 200,
         view_decorators: t.Optional[list] = None,
     ):
         self._tags = tags or []
-        self.summary = summary
-        self.description = _spec.clean_commonmark(description)
+        self.__summary = summary
+        self.__description = _spec.clean_commonmark(description)
 
         self.response_schema: t.Optional[schema.Schema] = None
         if response_schema is not None:
             self.response_schema = make_schema(response_schema)
 
-        self.deprecated = deprecated
-        self.include_in_spec = include_in_spec
-
+        self.__deprecated = deprecated
+        self.__include_in_spec = include_in_spec
         self.status_code = status_code
-        self.response_description = HTTPStatus(status_code).phrase
-
-        self._permission = permission
-
-        self.resource: t.Optional[Resource] = None
-
-        self._mountpoints: t.Dict[str, MountPoint] = {}
-        self.view_decorators = view_decorators or []
+        self.__response_description = HTTPStatus(status_code).phrase
+        self.__permission: t.Optional[BasePermission] = permission and make_instance(
+            permission
+        )
+        self.__mountpoints: t.Dict[str, MountPoint] = {}
+        self._resource: Resource = None  # type: ignore
+        self._view_decorators = view_decorators or []
 
     def _get_tags(self, spec_id):
         tags = []
-        for t in itertools.chain(self.resource.tags, self._tags):
+        for t in itertools.chain(self._resource.tags, self._tags):
             if isinstance(t, Tag):
                 tags.append(t.name)
                 _spec.Collection(spec_id).tags.add(t)
@@ -329,27 +329,17 @@ class Operation:
                 tags.append(t)
         return tags
 
-    @cached_property
-    def permission(self) -> t.Optional[BasePermission]:
-        perm = None
-        assert self.resource
-        for p in [self.resource.permission, self._permission]:
-            if p is not None:
-                p = make_instance(p)
-                perm = p if perm is None else (perm & p)
-        return perm
-
     def __parse_parameters(self, handler):
         for name, parameter in inspect.signature(handler).parameters.items():
             param = parameter.default
             if not isinstance(param, MountPoint):
                 continue
             param.setup(self)
-            self._mountpoints[name] = param
+            self.__mountpoints[name] = param
 
     def parse_request(self, request):
         kwargs = {}
-        for name, param in self._mountpoints.items():
+        for name, param in self.__mountpoints.items():
             kwargs[name] = param.parse_request(request)
         return kwargs
 
@@ -359,10 +349,18 @@ class Operation:
         handler.operation = self
         return handler
 
+    @cached_property
+    def _permission(self) -> t.Optional[BasePermission]:
+        if self._resource._permission and self.__permission:
+            return self._resource._permission & self.__permission
+        return self._resource._permission or self.__permission
+
     def wrapped_invoke(self, handler, request) -> t.Tuple[t.Any, int]:
         # check permission
-        if self.permission is not None:
-            self.permission.check_permission(request)  # 401, 403
+        if self._permission and not self._permission.has_permission(request):
+            if request.user.is_authenticated:
+                raise ForbiddenError
+            raise UnauthorizedError
 
         kwargs = self.parse_request(request)
         rv = handler(**kwargs)
@@ -371,20 +369,20 @@ class Operation:
         return rv, self.status_code
 
     def __openapispec__(self, spec: OpenAPISpec):
-        if not self.include_in_spec:
+        if not self.__include_in_spec:
             return
 
         return functools.reduce(
             _spec.merge,
             [
                 {
-                    "summary": self.summary,
-                    "description": self.description,
+                    "summary": self.__summary,
+                    "description": self.__description,
                     # "tags": self._get_tags(123),
-                    "deprecated": _spec.default_as_none(self.deprecated, False),
+                    "deprecated": _spec.default_as_none(self.__deprecated, False),
                     "responses": {
                         self.status_code: {
-                            "description": self.response_description,
+                            "description": self.__response_description,
                             "content": {
                                 "application/json": {
                                     "schema": self.response_schema
@@ -393,10 +391,9 @@ class Operation:
                             },
                         },
                     },
-                    # "security": self.permission
-                    # and _spec.Skip(self.permission.to_spec, 123),
+                    "security": self._permission and spec.parse(self._permission),
                 },
-                *(spec.parse(p) for p in self._mountpoints.values()),
+                *(spec.parse(p) for p in self.__mountpoints.values()),
             ],
         )
 

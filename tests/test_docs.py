@@ -103,3 +103,19 @@ def test_restful(client):
     response = client.delete("/books/1")
     assert response.status_code == 204
     assert module.Book.objects.filter(id=1).first() is None
+
+
+@load_openapi_module("docs.src.django_openapi.permission.example")
+def test_permission(client, django_user_model, admin_client):
+    resp = client.get("/to/path")
+    assert resp.status_code == 401
+
+    user = django_user_model.objects.create(
+        username="someone", password="something"
+    )  # 普通用户
+    client.force_login(user)
+    resp = client.get("/to/path")
+    assert resp.status_code == 403
+
+    resp = admin_client.get("/to/path")
+    assert resp.status_code == 200
