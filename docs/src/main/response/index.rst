@@ -17,6 +17,3 @@
 
 Django 的视图函数要求返回一个 `HttpResponse <https://docs.djangoproject.com/en/4.2/ref/request-response/#django.http.HttpResponse>`_
 对象，所以 Django OpenAPI 的请求函数返回值都会通过一个 ``make_response`` 函数，它的源码如下。
-
-.. literalinclude:: ../../../../src/django_openapi/core/__init__.py
-    :pyobject: make_response

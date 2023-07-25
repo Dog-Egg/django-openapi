@@ -11,7 +11,7 @@ from django_openapi import schema as _schema
 from django_openapi.exceptions import (
     BadRequestError,
     NotFoundError,
-    RequestArgsError,
+    RequestValidationError,
     UnsupportedMediaTypeError,
 )
 from django_openapi.spec.utils import default_as_none
@@ -100,21 +100,21 @@ class MountPoint(abc.ABC):
         pass
 
 
-class BaseRequestParameter(MountPoint, abc.ABC):
+class RequestData(MountPoint, abc.ABC):
+    location: str
+
     def parse_request(self, request: HttpRequest) -> t.Any:
         try:
             return self._parse_request(request)
         except _schema.ValidationError as exc:
-            raise RequestArgsError(exc.format_errors())
+            raise RequestValidationError(exc, self.location)
 
     @abc.abstractmethod
     def _parse_request(self, request):
         pass
 
 
-class RequestParameter(BaseRequestParameter, abc.ABC):
-    location: t.Optional[str]
-
+class RequestParameter(RequestData, abc.ABC):
     def __init__(
         self,
         schema: t.Union[_schema.Model, t.Dict[str, _schema.Schema]],
@@ -227,10 +227,12 @@ class MediaType:
         return self.__schema.deserialize(data)
 
 
-class Body(BaseRequestParameter):
+class Body(RequestData):
     """
     :param content_type: 请求体内容类型，默认是: application/json。也可以设置为列表，以支持多种请求体类型。
     """
+
+    location = "body"
 
     def __init__(
         self,
