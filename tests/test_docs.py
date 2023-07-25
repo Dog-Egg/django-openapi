@@ -36,10 +36,10 @@ def load_openapi_module(module_name):
     return decorator
 
 
-@load_openapi_module("docs.src.django_openapi.pagination.pagination_customization")
+@load_openapi_module("docs.src.main.pagination.pagination_customization")
 @pytest.mark.django_db
 def test_pagination_customization(client):
-    from docs.src.django_openapi.pagination import pagination_customization as module
+    from docs.src.main.pagination import pagination_customization as module
 
     module.Book.objects.bulk_create([module.Book(title="三体", author="老刘")] * 30)
 
@@ -105,7 +105,7 @@ def test_restful(client):
     assert module.Book.objects.filter(id=1).first() is None
 
 
-@load_openapi_module("docs.src.django_openapi.permission.example")
+@load_openapi_module("docs.src.main.permission.example")
 def test_permission(client, django_user_model, admin_client):
     resp = client.get("/to/path")
     assert resp.status_code == 401

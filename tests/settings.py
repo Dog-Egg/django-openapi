@@ -13,7 +13,7 @@ INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.sessions",
     "tests",
-    "docs.src.django_openapi.pagination",
+    "docs.src.main.pagination",
     "docs.src.examples",
 ]
 

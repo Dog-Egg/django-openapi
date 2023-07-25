@@ -1,7 +1,0 @@
-Django OpenAPI
-==============
-
-.. toctree::
-    :glob:
-
-    ./**

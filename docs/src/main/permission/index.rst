@@ -6,7 +6,7 @@
 如下示例接口要求具有"管理员权限"的用户才可访问。
 
 .. literalinclude:: ./example.py
-    :emphasize-lines:
+    :emphasize-lines: 7
 .. openapiview:: ./example.py
 
 .. note::
