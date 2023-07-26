@@ -66,7 +66,7 @@ def validator(__a=None):
         >>> PositiveInteger().deserialize(-1)
         Traceback (most recent call last):
             ...
-        django_openapi_schema.exceptions.ValidationError: {'msgs': ['不是一个正整数']}
+        django_openapi_schema.exceptions.ValidationError: [{'msgs': ['不是一个正整数']}]
 
     如下是在 `Model` 中使用 `validator` 校验日期的正确性。
 
@@ -85,7 +85,7 @@ def validator(__a=None):
         >>> MySchema().deserialize({'start_date': '2000-01-01', 'end_date': '1999-01-01'})
         Traceback (most recent call last):
             ...
-        django_openapi_schema.exceptions.ValidationError: {'msgs': ['开始日期不能大于结束日期']}
+        django_openapi_schema.exceptions.ValidationError: [{'msgs': ['开始日期不能大于结束日期']}]
 
     :param field: 字段或字段名，将校验函数应用于该字段。
 
@@ -106,7 +106,7 @@ def validator(__a=None):
             >>> Person().deserialize({'name': '张三', 'age': -1})
             Traceback (most recent call last):
                 ...
-            django_openapi_schema.exceptions.ValidationError: {'fields': [{'loc': ['age'], 'msgs': ['年龄不能小于0']}]}
+            django_openapi_schema.exceptions.ValidationError: [{'msgs': ['年龄不能小于0'], 'loc': ['age']}]
     """
 
     def decorator(method, field=None):

@@ -57,10 +57,29 @@ def test_String__pattern():
         try:
             s.deserialize("a123")
         except schema.ValidationError as exc:
-            assert exc.format_errors() == {
-                "msgs": ["'a123' does not match pattern ^\\d+$."]
-            }
+            assert exc.format_errors() == [
+                {"msgs": ["'a123' does not match pattern ^\\d+$."]}
+            ]
             raise
 
     # re.Pattern
     assert schema.String(pattern=re.compile(r"^\d+$")).deserialize("123") == "123"
+
+
+def test_ValiationError():
+    with pytest.raises(schema.ValidationError):
+        try:
+            schema.List(schema.String(min_length=3, pattern=r"\d+")).deserialize(
+                ["123", "ab"]
+            )
+        except schema.ValidationError as e:
+            assert e.format_errors() == [
+                {
+                    "msgs": [
+                        "'ab' does not match pattern \\d+.",
+                        "The length must be greater than or equal to 3.",
+                    ],
+                    "loc": [1],
+                }
+            ]
+            raise

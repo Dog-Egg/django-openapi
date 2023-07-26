@@ -86,7 +86,7 @@ def test_restful(client):
     response = client.put("/books/1", {"author": "老刘"}, content_type="application/json")
     assert response.status_code == 400
     assert response.json() == {
-        "errors": {"fields": [{"loc": ["title"], "msgs": ["This field is required."]}]}
+        "validation_errors": [{"loc": ["title"], "msgs": ["This field is required."]}]
     }
 
     response = client.put(

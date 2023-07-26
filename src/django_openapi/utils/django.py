@@ -20,7 +20,7 @@ def django_validator_wraps(fn):
         >>> validate('example@@')
         Traceback (most recent call last):
             ...
-        django_openapi_schema.exceptions.ValidationError: {'msgs': ['Enter a valid email address.']}
+        django_openapi_schema.exceptions.ValidationError: [{'msgs': ['Enter a valid email address.']}]
     """
 
     @functools.wraps(fn)

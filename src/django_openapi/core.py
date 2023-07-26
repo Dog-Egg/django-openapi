@@ -35,9 +35,7 @@ def handle_RequestValidationError(
     e: exceptions.RequestValidationError, _
 ) -> HttpResponse:
     return JsonResponse(
-        {
-            "errors": e.exc.format_errors(),
-        },
+        {"validation_errors": e.exc.format_errors()},
         status=400,
     )
 

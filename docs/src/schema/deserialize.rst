@@ -23,7 +23,7 @@
     >>> schema.Integer(gt=1).deserialize(0) # 限制数值大于 1
     Traceback (most recent call last):
         ...
-    django_openapi_schema.exceptions.ValidationError: {'msgs': ['The value must be greater than 1.']}
+    django_openapi_schema.exceptions.ValidationError: [{'msgs': ['The value must be greater than 1.']}]
 
 
 倍数限制
@@ -41,4 +41,4 @@
     >>> price.deserialize(1.505)
     Traceback (most recent call last):
         ...
-    django_openapi_schema.exceptions.ValidationError: {'msgs': ['The value must be a multiple of 0.01.']}
+    django_openapi_schema.exceptions.ValidationError: [{'msgs': ['The value must be a multiple of 0.01.']}]

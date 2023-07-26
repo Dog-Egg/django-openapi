@@ -160,7 +160,7 @@ class Schema(Field, metaclass=SchemaMeta):
             >>> User().deserialize({})
             Traceback (most recent call last):
                 ...
-            django_openapi_schema.exceptions.ValidationError: {'fields': [{'loc': ['username'], 'msgs': ['This field is required.']}]}
+            django_openapi_schema.exceptions.ValidationError: [{'msgs': ['This field is required.'], 'loc': ['username']}]
 
     :param default: |AsField| 如果字段非必需，且设置了默认值，那么反序列化时如未提供该字段数据，则使用该默认值填充。该参数可设为一个无参函数，默认值将使用该函数的结果。
 
@@ -187,7 +187,7 @@ class Schema(Field, metaclass=SchemaMeta):
             >>> fruit.deserialize('banana')
             Traceback (most recent call last):
                 ...
-            django_openapi_schema.exceptions.ValidationError: {'msgs': ["The value must be one of 'apple', 'watermelon', 'grape'."]}
+            django_openapi_schema.exceptions.ValidationError: [{'msgs': ["The value must be one of 'apple', 'watermelon', 'grape'."]}]
 
     :param nullable: 设置为 `True`，序列化和反序列化将允许输出 `None`，默认 `False`。
 
@@ -209,7 +209,7 @@ class Schema(Field, metaclass=SchemaMeta):
             >>> String().deserialize(None)
             Traceback (most recent call last):
                 ...
-            django_openapi_schema.exceptions.ValidationError: {'msgs': ['The value cannot be null.']}
+            django_openapi_schema.exceptions.ValidationError: [{'msgs': ['The value cannot be null.']}]
 
     :param description: 在 |OAS| 中提供描述内容。
     :param validators: 用于设置反序列化校验函数。
@@ -223,7 +223,7 @@ class Schema(Field, metaclass=SchemaMeta):
             >>> Integer(validators=[validate]).deserialize(-1)
             Traceback (most recent call last):
                 ...
-            django_openapi_schema.exceptions.ValidationError: {'msgs': ['不是一个正整数']}
+            django_openapi_schema.exceptions.ValidationError: [{'msgs': ['不是一个正整数']}]
     """
 
     meta: MetaOptions
@@ -306,8 +306,8 @@ class Schema(Field, metaclass=SchemaMeta):
             try:
                 validator(value)
             except ValidationError as exc:
-                error.concat_error(exc)
-        if error.nonempty:
+                error._concat_error(exc)
+        if error._nonempty:
             raise error
 
         return value
@@ -419,8 +419,8 @@ class Model(Schema, metaclass=ModelMeta):
             ...     User(required_fields='__all__').deserialize({})
             ... except ValidationError as exc:
             ...     pprint.pprint(exc.format_errors())
-            {'fields': [{'loc': ['username'], 'msgs': ['This field is required.']},
-                        {'loc': ['address'], 'msgs': ['This field is required.']}]}
+            [{'loc': ['username'], 'msgs': ['This field is required.']},
+             {'loc': ['address'], 'msgs': ['This field is required.']}]
 
         .. code-block::
             :caption: 指定部分字段为必需
@@ -429,7 +429,7 @@ class Model(Schema, metaclass=ModelMeta):
             ...     User(required_fields=['address']).deserialize({})
             ... except ValidationError as exc:
             ...     pprint.pprint(exc.format_errors())
-            {'fields': [{'loc': ['address'], 'msgs': ['This field is required.']}]}
+            [{'loc': ['address'], 'msgs': ['This field is required.']}]
 
     :param unknown_fields: 该参数决定了在反序列化时如何处理未知字段。
 
@@ -459,7 +459,7 @@ class Model(Schema, metaclass=ModelMeta):
             >>> User(unknown_fields='error').deserialize(data)
             Traceback (most recent call last):
                 ...
-            django_openapi_schema.exceptions.ValidationError: {'fields': [{'loc': ['address'], 'msgs': ['Unknown field.']}]}
+            django_openapi_schema.exceptions.ValidationError: [{'msgs': ['Unknown field.'], 'loc': ['address']}]
     """
 
     class Meta:
@@ -535,7 +535,7 @@ class Model(Schema, metaclass=ModelMeta):
 
             if val is EMPTY:
                 if field._required:
-                    error.set_field_error(
+                    error._set_index_error(
                         field._alias,  # type: ignore
                         ValidationError("This field is required."),
                     )
@@ -549,7 +549,7 @@ class Model(Schema, metaclass=ModelMeta):
             try:
                 rv[field._attr] = field.deserialize(val)
             except ValidationError as exc:
-                error.set_field_error(field._alias, exc)  # type: ignore
+                error._set_index_error(field._alias, exc)  # type: ignore
 
         if self._unknown_fields == EXCLUDE:
             pass
@@ -557,9 +557,9 @@ class Model(Schema, metaclass=ModelMeta):
             rv.update(data)
         elif self._unknown_fields == ERROR and data:
             for key in data:
-                error.set_field_error(key, ValidationError("Unknown field."))
+                error._set_index_error(key, ValidationError("Unknown field."))
 
-        if error.nonempty:
+        if error._nonempty:
             raise error
 
         return rv
@@ -805,9 +805,9 @@ class List(Schema):
             try:
                 rv.append(self.__item.deserialize(item))
             except ValidationError as exc:
-                error.set_field_error(index, exc)
+                error._set_index_error(index, exc)
 
-        if error.nonempty:
+        if error._nonempty:
             raise error
         return rv
 
