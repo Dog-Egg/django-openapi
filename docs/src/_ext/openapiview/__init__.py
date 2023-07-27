@@ -5,24 +5,18 @@ import uuid
 from html import escape
 
 import django
-import jinja2
 from django.apps import apps
 from django.conf import settings
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
-from jinja2 import Template
 
-with open(os.path.join(os.path.dirname(__file__), "swagger-ui.j2")) as fp:
-    template = Template(fp.read())
-
-template.environment.policies["json.dumps_kwargs"] = {"sort_keys": False}
+from django_openapi.docs import _get_swagger_ui_html
 
 
 class OpenAPIView(Directive):
     has_content = True
     option_spec = {
         "docexpansion": directives.unchanged,
-        "defaultmodelrendering": directives.unchanged,
     }
 
     def run(self):
@@ -30,11 +24,25 @@ class OpenAPIView(Directive):
             filename = self.state.document.settings.env.relfn2path(self.content[0])[1]
             module = import_module_from_file(filename)
 
-            oas = parse_module(module)
-            html = template.render(spec=oas, options=self.options)
+            extra_config = {}
+            if "docexpansion" in self.options:
+                extra_config["docExpansion"] = self.options["docexpansion"]
+
+            html = _get_swagger_ui_html(
+                {
+                    "spec": parse_module(module),
+                    **extra_config,
+                },
+                insert_head="""
+                <script src="/_static/iframeResizer.contentWindow.min.js"></script>
+                <script src="/_static/swagger-ui-bundle.js"></script>
+                <link rel="stylesheet" href="/_static/swagger-ui.css" />
+                """,
+                env="sphinx",
+            )
 
             iframe_id = "id_" + uuid.uuid4().hex[:8]
-            html = f"""
+            iframe = f"""
             <iframe id="{iframe_id}" srcdoc="{escape(html)}" frameborder="0" style="border: 1px solid #ddd; min-width: 100%;"></iframe>
             <script src="/_static/iframeResizer.min.js"></script>
             <script>
@@ -42,7 +50,7 @@ class OpenAPIView(Directive):
             </script>
             """
 
-            node = nodes.raw(text=html, format="html")
+            node = nodes.raw(text=iframe, format="html")
             return [node]
         except Exception as exc:
             traceback.print_exc()
@@ -66,9 +74,9 @@ def import_module_from_file(path):
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
 
-    # 将该模块所在的上级模块注册为 Django APP
     INSTALLED_APPS = [
-        module.__name__.rsplit(".", 1)[0],
+        module.__name__.rsplit(".", 1)[0],  # 将该模块所在的上级模块注册为 Django APP
+        "django_openapi",
     ]
     apps.set_installed_apps(INSTALLED_APPS)
 
@@ -77,7 +85,20 @@ def import_module_from_file(path):
 
 
 def setup(app):
-    settings.configure(INSTALLED_APPS=[])
+    settings.configure(
+        TEMPLATES=[
+            {
+                "BACKEND": "django.template.backends.django.DjangoTemplates",
+                "DIRS": ["templates"],
+                "APP_DIRS": True,
+                "OPTIONS": {
+                    "context_processors": [
+                        "django.template.context_processors.debug",
+                    ],
+                },
+            },
+        ],
+    )
     django.setup()
 
     app.add_directive("openapiview", OpenAPIView)

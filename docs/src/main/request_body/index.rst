@@ -8,4 +8,4 @@
 
 .. literalinclude:: ./multiple_content_types.py
 .. openapiview:: ./multiple_content_types.py
-    :docexpansion: full
+    :docExpansion: full

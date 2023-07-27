@@ -1,11 +1,14 @@
 import os
+import pathlib
 import sys
+
+BASE_DIR = pathlib.Path(__file__).resolve().parent
 
 sys.path.extend(
     [
-        os.path.abspath("./_ext"),
-        os.path.abspath("../../src"),
-        os.path.abspath("../"),
+        str((BASE_DIR / "./_ext").resolve()),
+        str((BASE_DIR / "../..").resolve()),
+        str((BASE_DIR / "../../src").resolve()),
     ]
 )
 
@@ -32,7 +35,10 @@ nitpick_ignore = [
 
 # HTML output
 html_theme = "furo"
-html_static_path = ["_static"]
+html_static_path = [
+    "_static",
+    str((BASE_DIR / "../../src/django_openapi/templates/_static").resolve()),
+]
 
 
 # internationalization

@@ -31,4 +31,4 @@
 .. literalinclude:: ./pagination_customization.py
 
 .. openapiview:: ./pagination_customization.py
-    :docexpansion: full
+    :docExpansion: full

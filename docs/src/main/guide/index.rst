@@ -19,7 +19,7 @@ default
 .. literalinclude:: ./default.py
 
 .. openapiview:: ./default.py
-    :docexpansion: full
+    :docExpansion: full
 
 
 nullable
@@ -29,7 +29,6 @@ nullable
 
 .. openapiview:: ./nullable.py
     :docExpansion: full
-    :defaultModelRendering: model
 
 
 enum
@@ -38,7 +37,7 @@ enum
 .. literalinclude:: ./enum.py
 
 .. openapiview:: ./enum.py
-    :docexpansion: full
+    :docExpansion: full
 
 
 maximum
@@ -55,8 +54,7 @@ multipleOf
 .. literalinclude:: ./number.py
 
 .. openapiview:: ./number.py
-    :docexpansion: full
-    :defaultModelRendering: model
+    :docExpansion: full
 
 
 pattern
@@ -66,7 +64,6 @@ pattern
 
 .. openapiview:: ./pattern.py
     :docExpansion: full
-    :defaultModelRendering: model
 
 
 maxLength
@@ -78,7 +75,6 @@ minLength
 
 .. openapiview:: ./length.py
     :docExpansion: full
-    :defaultModelRendering: model
 
 
 maxItems
@@ -92,7 +88,6 @@ uniqueItems
 
 .. openapiview:: ./array.py
     :docExpansion: full
-    :defaultModelRendering: model
 
 
 additionalProperties
@@ -106,7 +101,6 @@ minProperties
 
 .. openapiview:: ./dict.py
     :docExpansion: full
-    :defaultModelRendering: model
 
 anyOf
 ^^^^^

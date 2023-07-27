@@ -4,67 +4,88 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <meta
-            name="description"
-            content="SwaggerUI"
-    />
+    <meta name="description" content="SwaggerUI"/>
     <title>Swagger UI</title>
-    <style>{% include "_static/swagger-ui.css" %}</style>
     <style>
         body {
             margin: 0;
         }
-
+        body::before, body::after {
+            content: "";
+            display: table;
+        }
         .footer {
             margin-bottom: 25px;
             color: #cccccc;
             font-size: 12px;
             display: flex;
         }
-
         .footer .powered-by {
             float: right;
         }
     </style>
+    {% if env != 'sphinx' %}
+    <style>{% include "_static/swagger-ui.css" %}</style>
+    <script>{% include "_static/swagger-ui-bundle.js" %}</script>
+    {% endif %}
+    {{ insert_head | safe }}
 </head>
 <body>
 <div id="swagger-ui"></div>
-<script>{% include "_static/swagger-ui-bundle.js" %}</script>
+{{config|json_script:"config-data"}}
 <script>
+    var config = JSON.parse(document.getElementById('config-data').textContent);
+
+    // 设置默认配置
+    Object.assign(config, {
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        onComplete: onComplete,
+        defaultModelRendering: "model",
+    });
+
     function onComplete() {
         var title = ui.specSelectors.info().toJS().title;
         document.title = title.concat(' | Swagger UI');
     }
 </script>
-{% if urls|length > 1 %}
+{% if env == 'sphinx' %}
+<script>
+    // 在 Sphinx 内使用时拦截请求
+    Object.assign(config, {
+        requestInterceptor: function (request) {
+            return request;
+        },
+        responseInterceptor: function (response) {
+            response.text = "该文档示例并不具备发起真实请求的能力，请自行拷贝代码进行测试。";
+            return response;
+        }
+    });
+</script>
+{% endif %}
+{% if 'urls' in config %}
     <script>{% include "_static/swagger-ui-standalone-preset.js" %}</script>
     <script>
         window.onload = function () {
-            window.ui = SwaggerUIBundle({
-                urls: {{ urls|safe }},
-                dom_id: '#swagger-ui',
-                deepLinking: true,
-                presets: [
-                    SwaggerUIBundle.presets.apis,
-                    SwaggerUIStandalonePreset
-                ],
-                layout: "StandaloneLayout",
-                onComplete: onComplete,
-            });
+            window.ui = SwaggerUIBundle(
+                Object.assign({
+                    presets: [
+                        SwaggerUIBundle.presets.apis,
+                        SwaggerUIStandalonePreset
+                    ],
+                    layout: "StandaloneLayout",
+                }, config)
+            );
         };
     </script>
 {% else %}
     <script>
         window.onload = function () {
-            window.ui = SwaggerUIBundle({
-                url: '{{ urls.0.url }}',
-                dom_id: '#swagger-ui',
-                deepLinking: true,
-                onComplete: onComplete,
-            });
+            window.ui = SwaggerUIBundle(Object.assign({}, config));
         };
     </script>
 {% endif %}
+{% if env != 'sphinx' %}
 <div class="swagger-ui footer">
     <div class="wrapper">
         <span class="powered-by">
@@ -72,5 +93,6 @@
         </span>
     </div>
 </div>
+{% endif %}
 </body>
 </html>

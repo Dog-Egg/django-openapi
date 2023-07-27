@@ -9,7 +9,7 @@
 .. literalinclude:: ./response_schema.py
 
 .. openapiview:: ./response_schema.py
-    :docexpansion: full
+    :docExpansion: full
 
 
 返回响应(待完善)

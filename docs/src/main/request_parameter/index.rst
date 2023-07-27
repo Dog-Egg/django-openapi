@@ -14,7 +14,7 @@ Path 参数
     路径参数的请求实参需要定义 ``__init__`` 方法来接收。
 
 .. openapiview:: ./path_param.py
-    :docexpansion: full
+    :docExpansion: full
 
 指定路径参数结构
 ^^^^^^^^^^^^^^^^^
@@ -25,7 +25,7 @@ Path 参数
     :emphasize-lines: 6-9
 
 .. openapiview:: ./path_param2.py
-    :docexpansion: full
+    :docExpansion: full
 
 
 Query 参数
@@ -35,7 +35,7 @@ Query 参数
     :emphasize-lines: 13
 
 .. openapiview:: ./query_param.py
-    :docexpansion: full
+    :docExpansion: full
 
 
 Header 参数
@@ -44,7 +44,7 @@ Header 参数
 .. literalinclude:: ./header_param.py
 
 .. openapiview:: ./header_param.py
-    :docexpansion: full
+    :docExpansion: full
 
 
 Cookie 参数
@@ -53,7 +53,7 @@ Cookie 参数
 .. literalinclude:: ./cookie_param.py
 
 .. openapiview:: ./cookie_param.py
-    :docexpansion: full
+    :docExpansion: full
 
 
 参数样式

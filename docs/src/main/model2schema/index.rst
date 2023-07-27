@@ -7,4 +7,4 @@
 .. literalinclude:: ./overview.py
 
 .. openapiview:: ./overview.py
-    :docexpansion: full
+    :docExpansion: full
