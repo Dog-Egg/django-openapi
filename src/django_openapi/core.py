@@ -16,8 +16,8 @@ from django.utils.functional import cached_property
 from django.views.decorators.csrf import csrf_exempt
 
 from django_openapi import exceptions, schema
+from django_openapi.auth import BaseAuth
 from django_openapi.parameter.parameters import MountPoint, Path
-from django_openapi.permissions import BasePermission
 from django_openapi.spec import Tag
 from django_openapi.spec import utils as _spec
 from django_openapi.utils.functional import make_model_schema, make_schema
@@ -166,7 +166,6 @@ class Resource:
     """
     :param path: 资源 URL，必须以 "/" 开头。
     :param include_in_spec: 是否将当前资源解析到 |OAS| 中，默认为 `True`。
-    :param permission: 为其下的所有 `Operation` 设置权限。
     """
 
     HTTP_METHODS = [
@@ -185,7 +184,6 @@ class Resource:
         path: t.Union[str, Path],
         *,
         tags=None,
-        permission: t.Union[BasePermission, t.Type[BasePermission], None] = None,
         view_decorators: t.Optional[list] = None,
         include_in_spec: bool = True,
     ):
@@ -194,9 +192,6 @@ class Resource:
         self._path: Path = path
         self.__operations: t.Dict[str, Operation] = {}
         self._tags: t.List = tags or []
-        self._permission: t.Optional[BasePermission] = permission and make_instance(
-            permission
-        )
         self.__view_decorators = view_decorators or []
         self.__include_in_spec = include_in_spec
         self.__view_function = None
@@ -316,7 +311,7 @@ class Operation:
     """
     :param include_in_spec: 是否将当前操作解析到 |OAS| 中，默认为 `True`。
     :param summary: 用于设置 |OAS| 操作对象摘要。
-    :param permission: 设置操作请求权限。
+    :param auth: 设置操作请求认证。
     """
 
     def __init__(
@@ -330,7 +325,7 @@ class Operation:
         ] = None,
         deprecated: bool = False,
         include_in_spec: bool = True,
-        permission: t.Union[BasePermission, t.Type[BasePermission], None] = None,
+        auth: t.Union[BaseAuth, t.Type[BaseAuth], None] = None,
         status_code: int = 200,
         view_decorators: t.Optional[list] = None,
     ):
@@ -346,9 +341,7 @@ class Operation:
         self.__include_in_spec = include_in_spec
         self.__status_code = status_code
         self.__response_description = HTTPStatus(status_code).phrase
-        self.__permission: t.Optional[BasePermission] = permission and make_instance(
-            permission
-        )
+        self.__auth: t.Optional[BaseAuth] = auth and make_instance(auth)
         self.__mountpoints: t.Dict[str, MountPoint] = {}
         self._resource: Resource = None  # type: ignore
         self._view_decorators = view_decorators or []
@@ -373,18 +366,9 @@ class Operation:
         handler.operation = self
         return handler
 
-    @cached_property
-    def _permission(self) -> t.Optional[BasePermission]:
-        if self._resource._permission and self.__permission:
-            return self._resource._permission & self.__permission
-        return self._resource._permission or self.__permission
-
     def wrapped_invoke(self, handler, request) -> t.Tuple[t.Any, int]:
-        # check permission
-        if self._permission and not self._permission.has_permission(request):
-            if request.user.is_authenticated:
-                raise exceptions.ForbiddenError
-            raise exceptions.UnauthorizedError
+        if self.__auth:
+            self.__auth.check_auth(request)
 
         kwargs = self.parse_request(request)
         rv = handler(**kwargs)
@@ -419,7 +403,7 @@ class Operation:
                             },
                         },
                     },
-                    "security": self._permission and spec.parse(self._permission),
+                    "security": self.__auth and spec.Skip(spec.parse(self.__auth)),
                 },
                 *(spec.parse(p) for p in self.__mountpoints.values()),
             ],

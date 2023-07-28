@@ -1,4 +1,5 @@
 import typing as t
+from typing import Any
 
 from django_openapi_schema import schemas
 
@@ -13,6 +14,19 @@ class Protect(t.Generic[T]):
 
     >>> clean({'schema': Protect({'type': None})})
     {'schema': {}}
+    """
+
+    def __init__(self, obj: T) -> None:
+        self._obj = obj
+
+    def __call__(self) -> T:
+        return self._obj
+
+
+class Skip(t.Generic[T]):
+    """
+    >>> clean({'schema': Skip({'type': None})})
+    {'schema': {'type': None}}
     """
 
     def __init__(self, obj: T) -> None:
@@ -47,6 +61,8 @@ def clean(data: T) -> T:
     >>> clean([{}, 0, None, [None], 1])
     [0, 1]
     """
+    if isinstance(data, Skip):
+        return data()
 
     if isinstance(data, dict):
         new = type(data)()
@@ -76,6 +92,9 @@ def clean(data: T) -> T:
 class OpenAPISpec:
     """OpenAPI Specification 对象"""
 
+    Protect = Protect
+    Skip = Skip
+
     def __init__(self, *, info):
         self.__paths = {}
         self.__info = InfoObjectSchema().deserialize(info)
@@ -88,8 +107,8 @@ class OpenAPISpec:
     def add_path(self, path, pathitem):
         self.__paths[path] = pathitem
 
-    def add_security(self, data: dict):
-        self.__security_schemes.update(data)
+    def add_security_scheme(self, key, obj):
+        self.__security_schemes[key] = obj
 
     def to_dict(self):
         return clean(

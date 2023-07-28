@@ -21,7 +21,7 @@ class NotFoundError(Exception):
 
 
 class UnauthorizedError(Exception):
-    """权限验证错误时，当用户为验证时抛出，默认返回 HTTP 401 响应。"""
+    """认证失败时抛出，默认返回 HTTP 401 响应。"""
 
 
 class MethodNotAllowedError(Exception):
@@ -29,7 +29,7 @@ class MethodNotAllowedError(Exception):
 
 
 class ForbiddenError(Exception):
-    """权限验证错误时，当用户权限不匹配时抛出，默认返回 HTTP 403 响应。"""
+    """授权失败时抛出，默认返回 HTTP 403 响应。"""
 
 
 class UnsupportedMediaTypeError(Exception):

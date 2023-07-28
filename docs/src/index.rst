@@ -20,7 +20,7 @@ Django—OpenAPI
     main/request_parameter/index
     main/response/index
     main/guide/index
-    main/permission/index
+    main/auth/index
     main/exception_handling
     main/layout/index
 

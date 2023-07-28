@@ -105,8 +105,8 @@ def test_restful(client):
     assert module.Book.objects.filter(id=1).first() is None
 
 
-@load_openapi_module("docs.src.main.permission.example")
-def test_permission(client, django_user_model, admin_client):
+@load_openapi_module("docs.src.main.auth.example")
+def test_auth(client, django_user_model, admin_client):
     resp = client.get("/to/path")
     assert resp.status_code == 401
 

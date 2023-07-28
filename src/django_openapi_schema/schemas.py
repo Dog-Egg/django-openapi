@@ -743,9 +743,7 @@ class Any(Schema):
         return value
 
     def __openapispec__(self, spec):
-        from .spectools.objects import Protect
-
-        return Protect(super().__openapispec__(spec))
+        return spec.Protect(super().__openapispec__(spec))
 
 
 class List(Schema):
