@@ -85,8 +85,8 @@ class OpenAPISpec:
     def title(self):
         return self.__info["title"]
 
-    def add_path(self, path, obj):
-        self.__paths[path] = self.parse(obj)
+    def add_path(self, path, pathitem):
+        self.__paths[path] = pathitem
 
     def add_security(self, data: dict):
         self.__security_schemes.update(data)
@@ -104,4 +104,7 @@ class OpenAPISpec:
         )
 
     def parse(self, obj, **kwargs):
-        return getattr(obj, "__openapispec__")(self, **kwargs)
+        try:
+            return getattr(obj, "__openapispec__")(self, **kwargs)
+        except TypeError as e:
+            raise RuntimeError(obj, e)

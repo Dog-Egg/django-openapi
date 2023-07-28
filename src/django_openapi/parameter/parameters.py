@@ -37,13 +37,19 @@ class Path:
     ):
         if not path.startswith("/"):
             raise ValueError('The path must start with a "/".')
-        self._path = django_path = path
+        self.__path = path
+        self.__raw_param_schemas = param_schemas
+        self.__raw_param_styles = param_styles
         self.__param_schemas: t.Dict[str, _schema.Schema] = {}
         self.__param_style_handlers: t.Dict[str, StyleHandler] = {}
+        self.__resolved = False
 
-        param_schemas = param_schemas or {}
+    def _resolve(self) -> t.Tuple[str, str]:
+        django_path = self.__path
+
+        param_schemas = self.__raw_param_schemas or {}
         pattern = re.compile(r"{(?P<param>.*)}")
-        for match in pattern.finditer(self._path):
+        for match in pattern.finditer(self.__path):
             (param,) = match.groups()
             if param not in param_schemas:
                 param_schemas[param] = _schema.String()
@@ -57,12 +63,16 @@ class Path:
             django_path = django_path.replace(match.group(), placeholder % param)
 
             # style
-            style = (param_styles or {}).get(param) or Style("simple", False)
+            style = (self.__raw_param_styles or {}).get(param) or Style("simple", False)
             self.__param_style_handlers[param] = StyleHandler(style, schema, "path")
 
-        self._django_path = django_path
+        self.__resolved = True
+        return django_path, self.__path
 
     def parse_kwargs(self, kwargs: dict):
+        if not self.__resolved:
+            self._resolve()
+
         for param, schema in self.__param_schemas.items():
             if param not in kwargs:
                 continue

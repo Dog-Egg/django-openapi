@@ -86,14 +86,20 @@ class OpenAPI:
     def title(self):
         return self.__spec.title
 
-    def add_resources(self, module):
+    def add_resources(self, module, **kwargs):
         """从模块中查找资源并添加。"""
         from django_openapi.utils.project import find_resources
 
         for res in find_resources(module):
-            self.add_resource(res)
+            self.add_resource(res, **kwargs)
 
-    def add_resource(self, obj):
+    def add_resource(self, obj, *, prefix="", tags=None):
+        if prefix:
+            if not prefix.startswith("/") or prefix.endswith("/"):
+                raise ValueError(
+                    'The prefix must start with a "/" and cannot end with a "/".'
+                )
+
         if isinstance(obj, Resource):
             resource = obj
         else:
@@ -112,10 +118,12 @@ class OpenAPI:
 
         resource._handle_error = handle_error
 
+        django_path, openapi_path = resource._path._resolve()
         view = resource.as_view()
-        self.__append_url(resource._django_path, view)
-
-        self.__spec.add_path(resource._openapi_path, resource)
+        self.__append_url(prefix + django_path, view)
+        self.__spec.add_path(
+            prefix + openapi_path, self.__spec.parse(resource, tags=tags)
+        )
 
     def __append_url(self, path, *args, **kwargs):
         path = path.lstrip("/")
@@ -132,7 +140,11 @@ class OpenAPI:
         oas = self.get_spec()
         prefix = request.path[: -len(self.__spec_endpoint)]
         if prefix:
-            oas.update(servers=[{"url": prefix}])
+            paths = oas.get("paths", {})
+            for path in list(paths.keys()):
+                paths[prefix + path] = paths[path]
+                del paths[path]
+
         json_dumps_params = dict(indent=2, ensure_ascii=False) if settings.DEBUG else {}
         return JsonResponse(oas, json_dumps_params=json_dumps_params)
 
@@ -177,9 +189,9 @@ class Resource:
     ):
         if not isinstance(path, Path):
             path = Path(path)
-        self.__path: Path = path
+        self._path: Path = path
         self.__operations: t.Dict[str, Operation] = {}
-        self.tags = tags or []
+        self._tags: t.List = tags or []
         self._permission: t.Optional[BasePermission] = permission and make_instance(
             permission
         )
@@ -271,7 +283,7 @@ class Resource:
         return JsonResponse(rv, status=status)
 
     def __view(self, request, **kwargs) -> t.Tuple[t.Any, int]:
-        kwargs = self.__path.parse_kwargs(kwargs)
+        kwargs = self._path.parse_kwargs(kwargs)
 
         method = request.method.lower()
         if method in self.HTTP_METHODS and hasattr(self.__klass, method):
@@ -287,21 +299,13 @@ class Resource:
         operation = self.__operations[method]
         return operation.wrapped_invoke(handler, request)
 
-    @property
-    def _django_path(self):
-        return self.__path._django_path
-
-    @property
-    def _openapi_path(self):
-        return self.__path._path
-
-    def __openapispec__(self, spec: OpenAPISpec):
+    def __openapispec__(self, spec: OpenAPISpec, **kwargs):
         if not self.__include_in_spec:
             return
         result = {}
         for method, operation in self.__operations.items():
             result[method] = _spec.merge(
-                {"parameters": spec.parse(self.__path)}, spec.parse(operation)
+                {"parameters": spec.parse(self._path)}, spec.parse(operation, **kwargs)
             )
         return result
 
@@ -328,7 +332,7 @@ class Operation:
         status_code: int = 200,
         view_decorators: t.Optional[list] = None,
     ):
-        self._tags = tags or []
+        self.__tags = tags or []
         self.__summary = summary
         self.__description = _spec.clean_commonmark(description)
 
@@ -346,16 +350,6 @@ class Operation:
         self.__mountpoints: t.Dict[str, MountPoint] = {}
         self._resource: Resource = None  # type: ignore
         self._view_decorators = view_decorators or []
-
-    def _get_tags(self, spec_id):
-        tags = []
-        for t in itertools.chain(self._resource.tags, self._tags):
-            if isinstance(t, Tag):
-                tags.append(t.name)
-                _spec.Collection(spec_id).tags.add(t)
-            else:
-                tags.append(t)
-        return tags
 
     def __parse_parameters(self, handler):
         for name, parameter in inspect.signature(handler).parameters.items():
@@ -396,7 +390,7 @@ class Operation:
             rv = self.response_schema.serialize(rv)
         return rv, self.__status_code
 
-    def __openapispec__(self, spec: OpenAPISpec):
+    def __openapispec__(self, spec: OpenAPISpec, tags):
         if not self.__include_in_spec:
             return
 
@@ -406,7 +400,11 @@ class Operation:
                 {
                     "summary": self.__summary,
                     "description": self.__description,
-                    # "tags": self._get_tags(123),
+                    "tags": [
+                        *self._resource._tags,
+                        *self.__tags,
+                        *(tags or []),
+                    ],
                     "deprecated": _spec.default_as_none(self.__deprecated, False),
                     "responses": {
                         self.__status_code: {

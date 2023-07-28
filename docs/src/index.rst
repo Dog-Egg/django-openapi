@@ -22,6 +22,7 @@ Django—OpenAPI
     main/guide/index
     main/permission/index
     main/exception_handling
+    main/layout/index
 
 .. toctree::
     :glob:
