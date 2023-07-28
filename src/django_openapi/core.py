@@ -25,10 +25,10 @@ from django_openapi_schema.spectools.objects import OpenAPISpec
 from django_openapi_schema.utils import make_instance
 
 
-def get_id():
+def get_openapi_name():
     frame = inspect.getframeinfo(sys._getframe(2))
     rv = "%s:%s" % (os.path.relpath(frame.filename), frame.lineno)
-    return hashlib.md5(rv.encode()).hexdigest()
+    return hashlib.md5(rv.encode()).hexdigest()[:8]
 
 
 def handle_RequestValidationError(
@@ -52,6 +52,7 @@ class OpenAPI:
                 "title": "API Document",
                 "version": "0.1.0"
             }
+    :param name: 如果需要对外分享 OAS 数据，建议设置该名称，它将作为 OAS 数据地址的一部分，而不是使用计算出的名称。
 
     """
 
@@ -59,6 +60,7 @@ class OpenAPI:
         self,
         *,
         info: t.Optional[dict] = None,
+        name: t.Optional[str] = None,
     ):
         self.__spec = OpenAPISpec(
             info=info
@@ -70,7 +72,7 @@ class OpenAPI:
         )
 
         self.__urls: t.List[django.urls.URLPattern] = []
-        self.__spec_endpoint = "/apispec_%s" % get_id()[:8]
+        self.__spec_endpoint = "/apispec_%s" % (name or get_openapi_name())
         self.__append_url(self.__spec_endpoint, self.spec_view)
         self.__error_handlers: t.Dict[t.Type[Exception], t.Callable] = {
             exceptions.BadRequestError: lambda *_: HttpResponse(status=400),
