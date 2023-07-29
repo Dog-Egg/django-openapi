@@ -44,7 +44,7 @@ def handle_http_error(e: HTTPError, request):
     return JsonResponse(
         {
             "status_code": e.status_code,
-            "reason": e.reason or HTTPStatus(e.status_code).phrase,
+            "reason": e.reason,
         },
         status=e.status_code,
     )

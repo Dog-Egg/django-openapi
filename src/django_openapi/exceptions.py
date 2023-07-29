@@ -1,4 +1,5 @@
 import typing
+from http import HTTPStatus
 
 from django_openapi_schema.exceptions import ValidationError
 
@@ -18,7 +19,9 @@ class HTTPError(Exception):
     status_code = 500
 
     def __init__(self, reason: typing.Optional[str] = None) -> None:
-        self.reason = reason
+        if reason is None:
+            reason = HTTPStatus(self.status_code).phrase
+        self.reason: str = reason
 
 
 class BadRequestError(HTTPError):
