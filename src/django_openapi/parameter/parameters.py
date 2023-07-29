@@ -217,7 +217,7 @@ class MediaType:
             try:
                 data = json.loads(request.body)
             except (json.JSONDecodeError, TypeError):
-                raise BadRequestError
+                raise BadRequestError("Invalid Data")
         else:
             combine = MultiValueDict()
             combine.update(request.POST)

@@ -2,7 +2,6 @@ import copy
 import functools
 import hashlib
 import inspect
-import itertools
 import os
 import sys
 import typing as t
@@ -12,13 +11,16 @@ import django.urls
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 from django.http.response import HttpResponseBase, JsonResponse
-from django.utils.functional import cached_property
 from django.views.decorators.csrf import csrf_exempt
 
-from django_openapi import exceptions, schema
+from django_openapi import schema
 from django_openapi.auth import BaseAuth
+from django_openapi.exceptions import (
+    HTTPError,
+    MethodNotAllowedError,
+    RequestValidationError,
+)
 from django_openapi.parameter.parameters import MountPoint, Path
-from django_openapi.spec import Tag
 from django_openapi.spec import utils as _spec
 from django_openapi.utils.functional import make_model_schema, make_schema
 from django_openapi_schema.spectools.objects import OpenAPISpec
@@ -31,13 +33,27 @@ def get_openapi_name():
     return hashlib.md5(rv.encode()).hexdigest()[:8]
 
 
-def handle_RequestValidationError(
-    e: exceptions.RequestValidationError, _
-) -> HttpResponse:
+def handle_request_validation_error(e: RequestValidationError, request):
     return JsonResponse(
         {"validation_errors": e.exc.format_errors()},
         status=400,
     )
+
+
+def handle_http_error(e: HTTPError, request):
+    return JsonResponse(
+        {
+            "status_code": e.status_code,
+            "reason": HTTPStatus(e.status_code).phrase,
+        },
+        status=e.status_code,
+    )
+
+
+DEFAULT_ERROR_HANDLERS: t.Dict[t.Type[Exception], t.Callable] = {
+    HTTPError: handle_http_error,
+    RequestValidationError: handle_request_validation_error,
+}
 
 
 class OpenAPI:
@@ -74,15 +90,9 @@ class OpenAPI:
         self.__urls: t.List[django.urls.URLPattern] = []
         self.__spec_endpoint = "/apispec_%s" % (name or get_openapi_name())
         self.__append_url(self.__spec_endpoint, self.spec_view)
-        self.__error_handlers: t.Dict[t.Type[Exception], t.Callable] = {
-            exceptions.BadRequestError: lambda *_: HttpResponse(status=400),
-            exceptions.UnauthorizedError: lambda *_: HttpResponse(status=401),
-            exceptions.ForbiddenError: lambda *_: HttpResponse(status=403),
-            exceptions.NotFoundError: lambda *_: HttpResponse(status=404),
-            exceptions.MethodNotAllowedError: lambda *_: HttpResponse(status=405),
-            exceptions.UnsupportedMediaTypeError: lambda *_: HttpResponse(status=415),
-            exceptions.RequestValidationError: handle_RequestValidationError,
-        }
+        self.__error_handlers: t.Dict[
+            t.Type[Exception], t.Callable
+        ] = DEFAULT_ERROR_HANDLERS.copy()
 
     @property
     def title(self):
@@ -291,7 +301,7 @@ class Resource:
             )
             handler = getattr(instance, method)
         else:
-            raise exceptions.MethodNotAllowedError
+            raise MethodNotAllowedError
 
         operation = self.__operations[method]
         return operation.wrapped_invoke(handler, request)

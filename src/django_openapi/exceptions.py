@@ -1,3 +1,5 @@
+import typing
+
 from django_openapi_schema.exceptions import ValidationError
 
 
@@ -12,25 +14,44 @@ class RequestValidationError(Exception):
         self.location = location
 
 
-class BadRequestError(Exception):
+class HTTPError(Exception):
+    status_code = 500
+
+    def __init__(self, reason: typing.Optional[str] = None) -> None:
+        self.reason = reason
+
+
+class BadRequestError(HTTPError):
     """处理请求数据时，在数据格式错误时抛出，默认返回 HTTP 400 响应。"""
 
+    status_code = 400
 
-class NotFoundError(Exception):
+
+class NotFoundError(HTTPError):
     """路径参数解析失败时抛出，默认返回 HTTP 404响应。"""
 
+    status_code = 404
 
-class UnauthorizedError(Exception):
+
+class UnauthorizedError(HTTPError):
     """认证失败时抛出，默认返回 HTTP 401 响应。"""
 
+    status_code = 401
 
-class MethodNotAllowedError(Exception):
+
+class MethodNotAllowedError(HTTPError):
     """请求路径时，当请求方法不存在时抛出，默认返回 HTTP 405 响应。"""
 
+    status_code = 405
 
-class ForbiddenError(Exception):
+
+class ForbiddenError(HTTPError):
     """授权失败时抛出，默认返回 HTTP 403 响应。"""
 
+    status_code = 403
 
-class UnsupportedMediaTypeError(Exception):
+
+class UnsupportedMediaTypeError(HTTPError):
     """请求内容类型与要求不符时抛出，默认返回 HTTP 415 响应。"""
+
+    status_code = 415
