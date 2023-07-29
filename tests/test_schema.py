@@ -83,3 +83,15 @@ def test_ValiationError():
                 }
             ]
             raise
+
+
+@pytest.mark.parametrize(
+    "schema, input, output",
+    [
+        (schema.Float(), "0", 0.0),
+    ],
+)
+def test_serialize(schema, input, output):
+    result = schema.serialize(input)
+    assert result == output
+    assert type(result) is type(output)

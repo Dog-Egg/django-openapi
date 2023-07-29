@@ -705,6 +705,9 @@ class Float(Number):
     def _deserialize(self, value) -> float:
         return float(value)
 
+    def _serialize(self, value):
+        return float(value)
+
 
 class Boolean(Schema):
     class Meta:
