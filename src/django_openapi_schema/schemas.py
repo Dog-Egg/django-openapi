@@ -535,7 +535,7 @@ class Model(Schema, metaclass=ModelMeta):
 
             if val is EMPTY:
                 if field._required:
-                    error._set_index_error(
+                    error._setitem_error(
                         field._alias,  # type: ignore
                         ValidationError("This field is required."),
                     )
@@ -549,7 +549,7 @@ class Model(Schema, metaclass=ModelMeta):
             try:
                 rv[field._attr] = field.deserialize(val)
             except ValidationError as exc:
-                error._set_index_error(field._alias, exc)  # type: ignore
+                error._setitem_error(field._alias, exc)  # type: ignore
 
         if self._unknown_fields == EXCLUDE:
             pass
@@ -557,7 +557,7 @@ class Model(Schema, metaclass=ModelMeta):
             rv.update(data)
         elif self._unknown_fields == ERROR and data:
             for key in data:
-                error._set_index_error(key, ValidationError("Unknown field."))
+                error._setitem_error(key, ValidationError("Unknown field."))
 
         if error._nonempty:
             raise error
@@ -691,7 +691,10 @@ class Integer(Number):
         data_type = "integer"
 
     def _deserialize(self, value) -> int:
-        return int(value)
+        try:
+            return int(value)
+        except ValueError:
+            raise ValidationError("Not a valid integer.")
 
     def _serialize(self, value) -> int:
         return int(value)
@@ -806,7 +809,7 @@ class List(Schema):
             try:
                 rv.append(self.__item.deserialize(item))
             except ValidationError as exc:
-                error._set_index_error(index, exc)
+                error._setitem_error(index, exc)
 
         if error._nonempty:
             raise error
@@ -863,12 +866,17 @@ class Dict(Schema):
         if not isinstance(obj, dict):
             raise ValidationError("Not a valid dict object.")
         rv = {}
+        err = ValidationError()
         for key, val in obj.items():
             try:
                 val = self.__value.deserialize(val)
             except ValidationError as e:
-                raise ValidationError("The value %s" % e)
+                err._setitem_error(key, e)
             rv[key] = val
+
+        if err._nonempty:
+            raise err
+
         return rv
 
     def _serialize(self, obj):

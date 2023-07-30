@@ -86,12 +86,32 @@ def test_ValiationError():
 
 
 @pytest.mark.parametrize(
-    "schema, input, output",
+    "schemaobj, input, output",
     [
         (schema.Float(), "0", 0.0),
     ],
 )
-def test_serialize(schema, input, output):
-    result = schema.serialize(input)
+def test_serialize(schemaobj, input, output):
+    result = schemaobj.serialize(input)
     assert result == output
     assert type(result) is type(output)
+
+
+@pytest.mark.parametrize(
+    "schemaobj, input, err",
+    [
+        (schema.Integer(), "a", [{"msgs": ["Not a valid integer."]}]),
+        (
+            schema.Dict(schema.Integer),
+            {"a": 1, "b": "b"},
+            [{"msgs": ["Not a valid integer."], "loc": ["b"]}],
+        ),
+    ],
+)
+def test_deserialize_error(schemaobj, input, err):
+    with pytest.raises(schema.ValidationError):
+        try:
+            schemaobj.deserialize(input)
+        except schema.ValidationError as e:
+            assert e.format_errors() == err
+            raise e
