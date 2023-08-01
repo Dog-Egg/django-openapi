@@ -135,3 +135,18 @@ def test_ValidationError_error_messages():
         {"loc": ["e3"], "msgs": ["这个值是必须的。"]},
         {"loc": ["e4"], "msgs": ["发生了一些错误"]},
     ]
+
+
+def test_Password_invalid_value():
+    class User(schema.Model):
+        password = schema.Password()  # Password 仅判断空字符串为无效值
+
+    assert User().deserialize({"password": " "}) == {"password": " "}
+    with pytest.raises(schema.ValidationError):
+        try:
+            User().deserialize({"password": ""})
+        except schema.ValidationError as e:
+            assert e.format_errors() == [
+                {"msgs": ["This field is required."], "loc": ["password"]}
+            ]
+            raise

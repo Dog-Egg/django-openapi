@@ -918,5 +918,9 @@ class AnyOf(Schema):
 
 
 class Password(String):
+    def __init__(self, **kwargs):
+        kwargs.setdefault("invalid_value", lambda v: isinstance(v, str) and v == "")
+        super().__init__(**kwargs)
+
     class Meta:
         data_format = "password"
