@@ -16,7 +16,7 @@ class MyPagination(Pagination):
             {
                 "page": schema.Integer(
                     default=1,
-                    gte=1,
+                    minimum=1,
                     alias="p",
                     description="页码",
                 )

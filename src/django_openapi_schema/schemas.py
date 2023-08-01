@@ -652,22 +652,27 @@ class String(Schema):
 class Number(Schema):
     def __init__(
         self,
-        gt=None,
-        gte=None,
-        lt=None,
-        lte=None,
+        maximux=None,
+        exclusive_maximum=False,
+        minimum=None,
+        exclusive_minimum=False,
         multiple_of=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
 
-        self.__gt = gt
-        self.__gte = gte
-        self.__lt = lt
-        self.__lte = lte
-        if any(i is not None for i in (gt, gte, lt, lte)):
+        self.__maximux = maximux
+        self.__exclusive_maximum = exclusive_maximum
+        self.__minimum = minimum
+        self.__exclusive_minimum = exclusive_minimum
+        if any(i is not None for i in (maximux, minimum)):
             self._validators.append(
-                _validators.RangeValidator(gt=gt, gte=gte, lt=lt, lte=lte)
+                _validators.RangeValidator(
+                    maximux=maximux,
+                    exclusive_maximum=exclusive_maximum,
+                    minimum=minimum,
+                    exclusive_minimum=exclusive_minimum,
+                )
             )
 
         self._multiple_of = multiple_of
@@ -677,10 +682,10 @@ class Number(Schema):
     def __openapispec__(self, spec, **kwargs):
         result = super().__openapispec__(spec, **kwargs)
         result.update(
-            maximum=self.__lte if self.__lt is None else self.__lt,
-            exclusiveMaximum=self.__lt is not None or None,
-            minimum=self.__gte if self.__gt is None else self.__gt,
-            exclusiveMinimum=self.__gt is not None or None,
+            maximum=self.__maximux,
+            exclusiveMaximum=default_as_none(self.__exclusive_maximum, False),
+            minimum=self.__minimum,
+            exclusiveMinimum=default_as_none(self.__exclusive_minimum, False),
             multipleOf=self._multiple_of,
         )
         return result

@@ -106,9 +106,11 @@ class DecimalConvertor(Convertor):
         return [v for v in validators if not isinstance(v, DecimalValidator)]
 
     def get_own_kwargs(self, field: models.DecimalField) -> dict:
-        lt = 10 ** (field.max_digits - field.decimal_places)
+        maximum = 10 ** (field.max_digits - field.decimal_places)
         multiple_of = Decimal("0.1") ** field.decimal_places
-        return dict(lt=lt, multiple_of=float(multiple_of))
+        return dict(
+            maximum=maximum, exclusive_minimum=True, multiple_of=float(multiple_of)
+        )
 
 
 class ForeignKeyConvertor(Convertor):

@@ -65,8 +65,8 @@ class PagePagination(Pagination):
     def _get_request_parameter(self) -> MountPoint:
         return Query(
             {
-                "page": schema.Integer(default=1, gte=1),
-                "page_size": schema.Integer(default=20, gte=1),
+                "page": schema.Integer(default=1, minimum=1),
+                "page_size": schema.Integer(default=20, minimum=1),
             }
         )
 
@@ -103,8 +103,8 @@ class OffsetPagination(Pagination):
     def _get_request_parameter(self) -> MountPoint:
         return Query(
             {
-                "offset": schema.Integer(default=0, gte=0),
-                "limit": schema.Integer(default=20, gte=1),
+                "offset": schema.Integer(default=0, minimum=0),
+                "limit": schema.Integer(default=20, minimum=1),
             }
         )
 

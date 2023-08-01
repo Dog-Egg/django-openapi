@@ -17,58 +17,67 @@ class OneOf:
 
 
 class RangeValidator:
-    def __init__(self, *, gt=None, gte=None, lt=None, lte=None):
-        if gt is not None and gte is not None:
-            raise ValueError("Only one can be set for 'gt' and 'gte'.")
-        if lt is not None and lte is not None:
-            raise ValueError("Only one can be set for 'lt' and 'lte'.")
-
-        self.gt = gt
-        self.gte = gte
-        self.lt = lt
-        self.lte = lte
+    def __init__(
+        self,
+        *,
+        maximux=None,
+        exclusive_maximum=False,
+        minimum=None,
+        exclusive_minimum=False,
+    ):
+        self.maximux = maximux
+        self.exclusive_maximum = exclusive_maximum
+        self.minimum = minimum
+        self.exclusive_minimum = exclusive_minimum
 
     def __call__(self, value):
-        if self.gt is not None and self.lt is not None:
-            if not (self.gt < value < self.lt):
-                raise ValidationError(
-                    "The value must be greater than %s and less than %s."
-                    % (self.gt, self.lt)
-                )
-        elif self.gt is not None and self.lte is not None:
-            if not (self.gt < value <= self.lte):
-                raise ValidationError(
-                    "The value must be greater than %s and less than or equal to %s."
-                    % (self.gt, self.lte)
-                )
-        elif self.gte is None and self.lte is not None:
-            if not (self.gte <= value <= self.lte):
-                raise ValidationError(
-                    "The value must be greater than or equal to %s and less than or equal to %s."
-                    % (self.gte, self.lte)
-                )
-        elif self.gte is not None and self.lt is not None:
-            if not (self.gte <= value < self.lt):
-                raise ValidationError(
-                    "The value must be greater than or equal to %s and less than %s."
-                    % (self.gte, self.lte)
-                )
-        elif self.gt is not None:
-            if not (self.gt < value):
-                raise ValidationError("The value must be greater than %s." % self.gt)
-        elif self.gte is not None:
-            if not (self.gte <= value):
-                raise ValidationError(
-                    "The value must be greater than or equal to %s." % self.gte
-                )
-        elif self.lt is not None:
-            if not (value < self.lt):
-                raise ValidationError("The value must be less than %s." % self.lt)
-        elif self.lte is not None:
-            if not (value <= self.lte):
-                raise ValidationError(
-                    "The value must be less than or equal to %s." % self.lte
-                )
+        if self.minimum is not None and self.maximux is not None:
+            if not self.exclusive_minimum and not self.exclusive_maximum:
+                if not (self.minimum <= value <= self.maximux):
+                    raise ValidationError(
+                        "The value must be greater than or equal to %s and less than or equal to %s."
+                        % (self.minimum, self.maximux)
+                    )
+            elif self.exclusive_minimum and not self.exclusive_maximum:
+                if not (self.minimum < value <= self.maximux):
+                    raise ValidationError(
+                        "The value must be greater than %s and less than or equal to %s."
+                        % (self.minimum, self.maximux)
+                    )
+            elif not self.exclusive_minimum and self.exclusive_maximum:
+                if not (self.minimum <= value < self.maximux):
+                    raise ValidationError(
+                        "The value must be greater than or equal to %s and less than or equal to %s."
+                        % (self.minimum, self.maximux)
+                    )
+            else:
+                if not (self.minimum < value < self.maximux):
+                    raise ValidationError(
+                        "The value must be greater than %s and less than %s."
+                        % (self.minimum, self.maximux)
+                    )
+        elif self.minimum is not None and self.maximux is None:
+            if not self.exclusive_minimum:
+                if not (self.minimum <= value):
+                    raise ValidationError(
+                        "The value must be greater than or equal to %s." % self.minimum
+                    )
+            else:
+                if not (self.minimum < value):
+                    raise ValidationError(
+                        "The value must be greater than %s." % self.minimum
+                    )
+        elif self.minimum is None and self.maximux is not None:
+            if not self.exclusive_maximum:
+                if not (value <= self.maximux):
+                    raise ValidationError(
+                        "The value must be less than or equal to %s." % self.maximux
+                    )
+            else:
+                if not (value < self.maximux):
+                    raise ValidationError(
+                        "The value must be less than %s" % self.maximux
+                    )
 
 
 class MultipleOfValidator:

@@ -8,11 +8,11 @@ class API:
         self,
         body=Body(
             {
-                "gt": schema.Integer(gt=0),
-                "gte": schema.Integer(gte=0),
-                "lt": schema.Integer(lt=0),
-                "lte": schema.Integer(lte=0),
-                "price": schema.Float(gte=0, multiple_of=0.01),
+                "gte": schema.Integer(minimum=0),
+                "gt": schema.Integer(minimum=0, exclusive_minimum=True),
+                "lte": schema.Integer(maximux=0),
+                "lt": schema.Integer(maximux=0, exclusive_maximum=True),
+                "price": schema.Float(minimum=0, multiple_of=0.01),
             }
         ),
     ):
