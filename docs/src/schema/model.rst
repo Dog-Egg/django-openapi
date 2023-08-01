@@ -68,3 +68,25 @@ Model
     >>> pprint.pprint(Book().deserialize({'title': '三体', 'author': {'name': '刘慈欣', 'birthday': '1963-06-23'}}))
     {'author': {'birthday': datetime.date(1963, 6, 23), 'name': '刘慈欣'},
      'title': '三体'}
+
+
+无效的字段值
+-------------
+
+``invalid_value`` 用于在对字段进行反序列化时，如果输入的字段值被判断为无效值，则会被当成未提供处理。默认的无效值是输入空白字符串。
+
+如下所示字段 a 为必需提供的，虽然反序列化时提供了一个空字符，但默认 ``""`` 是无效的，相当与为提供字段值。
+
+.. testcode::
+
+    class Foo(schema.Model):
+        a = schema.String()
+
+    Foo().deserialize({"a": ""})
+
+
+.. testoutput::
+
+    Traceback (most recent call last):
+        ...
+    django_openapi_schema.exceptions.ValidationError: [{'msgs': ['This field is required.'], 'loc': ['a']}]

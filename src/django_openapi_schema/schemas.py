@@ -146,6 +146,18 @@ class Field:
         return getattr(data, self._attr)
 
 
+def default_invalid_value(value):
+    """
+    >>> default_invalid_value('')
+    True
+    >>> default_invalid_value(' ')
+    True
+    >>> default_invalid_value(' a ')
+    False
+    """
+    return isinstance(value, str) and not value.strip()
+
+
 class Schema(Field, metaclass=SchemaMeta):
     """
     :param required: |AsField| 在反序列化时，判断字段是否必需提供。默认必需，可设为 `False` 或设置 ``default`` 参数使其变为非必需。
@@ -245,6 +257,7 @@ class Schema(Field, metaclass=SchemaMeta):
         validators: t.Optional[t.List[t.Callable[[t.Any], t.Any]]] = None,
         choices: t.Optional[t.Iterable] = None,
         description: str = "",
+        invalid_value: t.Optional[t.Callable] = default_invalid_value,
         error_messages: t.Optional[dict] = None,
         **kwargs,
     ):
@@ -255,6 +268,7 @@ class Schema(Field, metaclass=SchemaMeta):
         self.__nullable = nullable
         self.__choices = choices
         self.__error_messages = error_messages or {}
+        self._invalid_value = invalid_value
 
         self._validators = validators or []
         if choices is not None:
@@ -533,6 +547,9 @@ class Model(Schema, metaclass=ModelMeta):
                 val = data.pop(field._alias)
             except KeyError:
                 val = EMPTY
+            else:
+                if field._invalid_value and field._invalid_value(val):
+                    val = EMPTY
 
             if val is EMPTY:
                 if field._required:
