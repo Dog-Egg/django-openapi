@@ -20,43 +20,43 @@ class RangeValidator:
     def __init__(
         self,
         *,
-        maximux=None,
+        maximum=None,
         exclusive_maximum=False,
         minimum=None,
         exclusive_minimum=False,
     ):
-        self.maximux = maximux
+        self.maximum = maximum
         self.exclusive_maximum = exclusive_maximum
         self.minimum = minimum
         self.exclusive_minimum = exclusive_minimum
 
     def __call__(self, value):
-        if self.minimum is not None and self.maximux is not None:
+        if self.minimum is not None and self.maximum is not None:
             if not self.exclusive_minimum and not self.exclusive_maximum:
-                if not (self.minimum <= value <= self.maximux):
+                if not (self.minimum <= value <= self.maximum):
                     raise ValidationError(
                         "The value must be greater than or equal to %s and less than or equal to %s."
-                        % (self.minimum, self.maximux)
+                        % (self.minimum, self.maximum)
                     )
             elif self.exclusive_minimum and not self.exclusive_maximum:
-                if not (self.minimum < value <= self.maximux):
+                if not (self.minimum < value <= self.maximum):
                     raise ValidationError(
                         "The value must be greater than %s and less than or equal to %s."
-                        % (self.minimum, self.maximux)
+                        % (self.minimum, self.maximum)
                     )
             elif not self.exclusive_minimum and self.exclusive_maximum:
-                if not (self.minimum <= value < self.maximux):
+                if not (self.minimum <= value < self.maximum):
                     raise ValidationError(
                         "The value must be greater than or equal to %s and less than or equal to %s."
-                        % (self.minimum, self.maximux)
+                        % (self.minimum, self.maximum)
                     )
             else:
-                if not (self.minimum < value < self.maximux):
+                if not (self.minimum < value < self.maximum):
                     raise ValidationError(
                         "The value must be greater than %s and less than %s."
-                        % (self.minimum, self.maximux)
+                        % (self.minimum, self.maximum)
                     )
-        elif self.minimum is not None and self.maximux is None:
+        elif self.minimum is not None and self.maximum is None:
             if not self.exclusive_minimum:
                 if not (self.minimum <= value):
                     raise ValidationError(
@@ -67,16 +67,16 @@ class RangeValidator:
                     raise ValidationError(
                         "The value must be greater than %s." % self.minimum
                     )
-        elif self.minimum is None and self.maximux is not None:
+        elif self.minimum is None and self.maximum is not None:
             if not self.exclusive_maximum:
-                if not (value <= self.maximux):
+                if not (value <= self.maximum):
                     raise ValidationError(
-                        "The value must be less than or equal to %s." % self.maximux
+                        "The value must be less than or equal to %s." % self.maximum
                     )
             else:
-                if not (value < self.maximux):
+                if not (value < self.maximum):
                     raise ValidationError(
-                        "The value must be less than %s" % self.maximux
+                        "The value must be less than %s" % self.maximum
                     )
 
 

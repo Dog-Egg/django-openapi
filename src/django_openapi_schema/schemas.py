@@ -669,7 +669,8 @@ class String(Schema):
 class Number(Schema):
     def __init__(
         self,
-        maximux=None,
+        *,
+        maximum=None,
         exclusive_maximum=False,
         minimum=None,
         exclusive_minimum=False,
@@ -678,14 +679,14 @@ class Number(Schema):
     ):
         super().__init__(**kwargs)
 
-        self.__maximux = maximux
+        self.__maximum = maximum
         self.__exclusive_maximum = exclusive_maximum
         self.__minimum = minimum
         self.__exclusive_minimum = exclusive_minimum
-        if any(i is not None for i in (maximux, minimum)):
+        if any(i is not None for i in (maximum, minimum)):
             self._validators.append(
                 _validators.RangeValidator(
-                    maximux=maximux,
+                    maximum=maximum,
                     exclusive_maximum=exclusive_maximum,
                     minimum=minimum,
                     exclusive_minimum=exclusive_minimum,
@@ -699,7 +700,7 @@ class Number(Schema):
     def __openapispec__(self, spec, **kwargs):
         result = super().__openapispec__(spec, **kwargs)
         result.update(
-            maximum=self.__maximux,
+            maximum=self.__maximum,
             exclusiveMaximum=default_as_none(self.__exclusive_maximum, False),
             minimum=self.__minimum,
             exclusiveMinimum=default_as_none(self.__exclusive_minimum, False),

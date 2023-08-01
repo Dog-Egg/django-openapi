@@ -5,7 +5,6 @@ from decimal import Decimal
 import django
 from django.core.validators import DecimalValidator, MaxLengthValidator
 from django.db import models
-from django.db.models.fields.files import FieldFile
 
 from django_openapi.utils.django import django_validator_wraps
 
@@ -15,7 +14,6 @@ except ImportError:
     JSONField = None
 
 from . import schema
-from .utils.functional import Filter
 
 
 class Convertor:
@@ -26,13 +24,16 @@ class Convertor:
             self.schema_cls = schema_cls
 
     def convert(self, field, extra_kwargs=None):
-        kwargs = {
-            **self.get_common_kwargs(field),
-            **self.get_own_kwargs(field),
-        }
+        kwargs = self.extract_arguments(field)
         if extra_kwargs:
             kwargs.update(extra_kwargs)
         return self.schema_cls(**kwargs)
+
+    def extract_arguments(self, field: models.Field):
+        return {
+            **self.get_common_kwargs(field),
+            **self.get_own_kwargs(field),
+        }
 
     def get_own_kwargs(self, field) -> dict:
         return {}
@@ -66,6 +67,20 @@ class Convertor:
         )
         if isinstance(field.max_length, int):
             kwargs.update(max_length=field.max_length)
+
+        defaults = {  # 删除有默认值的参数
+            "required": None,
+            "read_only": False,
+            "default": schema.EMPTY,
+            "choices": None,
+            "validators": [],
+            "description": "",
+            "nullable": False,
+        }
+        for k, v in kwargs.copy().items():
+            if k in defaults and defaults[k] == kwargs[k]:
+                del kwargs[k]
+
         return kwargs
 
     @staticmethod
@@ -109,7 +124,7 @@ class DecimalConvertor(Convertor):
         maximum = 10 ** (field.max_digits - field.decimal_places)
         multiple_of = Decimal("0.1") ** field.decimal_places
         return dict(
-            maximum=maximum, exclusive_minimum=True, multiple_of=float(multiple_of)
+            maximum=maximum, exclusive_maximum=True, multiple_of=float(multiple_of)
         )
 
 

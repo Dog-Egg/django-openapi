@@ -10,8 +10,8 @@ class API:
             {
                 "gte": schema.Integer(minimum=0),
                 "gt": schema.Integer(minimum=0, exclusive_minimum=True),
-                "lte": schema.Integer(maximux=0),
-                "lt": schema.Integer(maximux=0, exclusive_maximum=True),
+                "lte": schema.Integer(maximum=0),
+                "lt": schema.Integer(maximum=0, exclusive_maximum=True),
                 "price": schema.Float(minimum=0, multiple_of=0.01),
             }
         ),

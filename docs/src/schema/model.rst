@@ -79,6 +79,8 @@ Model
 
 .. testcode::
 
+    from django_openapi import schema
+
     class Foo(schema.Model):
         a = schema.String()
 
