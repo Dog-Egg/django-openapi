@@ -62,5 +62,74 @@
 ``msgs`` 提供数据错误的消息，它是一个列表，当数据未通过多个验证器时会得到多条消息。
 
 
-自定义消息
------------
+自定义错误消息
+--------------
+
+.. testcode::
+
+    class Foo(schema.Model):
+        a = schema.String()
+        b = schema.String(error_messages={'required': '字段 b 是必需的。'})
+
+    try:
+        Foo().deserialize({})
+    except schema.ValidationError as e:
+        pprint.pprint(e.format_errors())
+
+.. testoutput::
+
+    [{'loc': ['a'], 'msgs': ['This field is required.']},
+     {'loc': ['b'], 'msgs': ['字段 b 是必需的。']}]
+
+
+.. note::
+    消息可以不只是字符串，它可以是任意对象。
+
+.. testcode::
+
+    class Foo(schema.Model):
+        a = schema.String(error_messages={
+                "required": {
+                    "code": 1001,
+                    "err": "This value is required.",
+                }
+            })
+
+    try:
+        Foo().deserialize({})
+    except schema.ValidationError as e:
+        pprint.pprint(e.format_errors())
+
+.. testoutput::
+
+    [{'loc': ['a'], 'msgs': [{'code': 1001, 'err': 'This value is required.'}]}]
+
+
+覆盖默认的错误消息
+^^^^^^^^^^^^^^^^^^^
+
+使用上下文的方式来覆盖默认的错误消息的。
+
+
+.. testcode::
+
+    class Foo(schema.Model):
+        a = schema.String()
+
+    with schema.error_message_context({
+        'required': '这是一个必需字段。'
+    }):
+        try:
+            Foo().deserialize({})
+        except schema.ValidationError as e:
+            pprint.pprint(e.format_errors())
+
+.. testoutput::
+
+    [{'loc': ['a'], 'msgs': ['这是一个必需字段。']}]
+
+
+默认错误消息键值参考
+--------------------
+
+.. literalinclude:: ../../../src/django_openapi_schema/_error_messages.py

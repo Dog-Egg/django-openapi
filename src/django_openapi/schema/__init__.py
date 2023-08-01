@@ -12,6 +12,7 @@ class File(Schema):
         data_format = "binary"
 
     def __init__(self, *args, **kwargs):
+        kwargs.pop("max_length", None)
         super().__init__(*args, **kwargs)
 
     def _serialize(self, obj):

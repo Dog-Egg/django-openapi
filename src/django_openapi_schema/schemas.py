@@ -108,7 +108,6 @@ class Field:
         alias: t.Optional[str] = None,
         read_only: bool = False,
         write_only: bool = False,
-        **kwargs,
     ):
         self._model: t.Optional[Model] = None
         self.__name = None
@@ -118,7 +117,7 @@ class Field:
         self.write_only = write_only
 
     @property
-    def _name(self):
+    def _name(self) -> str:
         assert self.__name is not None, f"{self!r} is not a field."
         return self.__name
 
@@ -246,19 +245,16 @@ class Schema(Field, metaclass=SchemaMeta):
         validators: t.Optional[t.List[t.Callable[[t.Any], t.Any]]] = None,
         choices: t.Optional[t.Iterable] = None,
         description: str = "",
+        error_messages: t.Optional[dict] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
-
-        self.options = dict(
-            required=required,
-            default=default,
-            description=description,
-            nullable=nullable,
-            validators=validators,
-            choices=choices,
-            **kwargs,
-        )
+        self.__required = required
+        self._default = default
+        self._description = description
+        self.__nullable = nullable
+        self.__choices = choices
+        self.__error_messages = error_messages or {}
 
         self._validators = validators or []
         if choices is not None:
@@ -271,17 +267,22 @@ class Schema(Field, metaclass=SchemaMeta):
             return True
 
         if self._model._required_fields is None:
-            required = self.options["required"]
+            required = self.__required
             if isinstance(required, bool):
                 return required
-            return self.options["default"] is EMPTY
+            return self._default is EMPTY
 
         return self._name in self._model._required_fields  # type: ignore
+
+    def _create_validation_error(self, key):
+        obj = ValidationError(key=key)
+        obj.update_error_message(self.__error_messages)
+        return obj
 
     def deserialize(self, value):
         """对数据进行反序列化操作。"""
         if value is None:
-            if self.options["nullable"]:
+            if self.__nullable:
                 return value
             else:
                 raise ValidationError("The value cannot be null.")
@@ -306,7 +307,7 @@ class Schema(Field, metaclass=SchemaMeta):
             try:
                 validator(value)
             except ValidationError as exc:
-                error._concat_error(exc)
+                error.concat_error(exc)
         if error._nonempty:
             raise error
 
@@ -323,7 +324,7 @@ class Schema(Field, metaclass=SchemaMeta):
         """对数据进行序列化操作。"""
         try:
             if value is None:
-                if self.options["nullable"]:
+                if self.__nullable:
                     return value
                 else:
                     if self.__is_field:
@@ -340,15 +341,15 @@ class Schema(Field, metaclass=SchemaMeta):
         return dict(
             type=self.meta["data_type"],
             default=None
-            if (self.options["default"] is EMPTY or callable(self.options["default"]))
-            else self.options["default"],
+            if (self._default is EMPTY or callable(self._default))
+            else self._default,
             # # # example=None if self.example is EMPTY else _spec.Skip(
             # # #     self.example() if callable(self.example) else self.example),
-            description=self.options["description"] or None,
+            description=self._description or None,
             readOnly=default_as_none(self.read_only, False),
             writeOnly=default_as_none(self.write_only, False),
-            enum=self.options["choices"],
-            nullable=default_as_none(self.options["nullable"], False),
+            enum=self.__choices,
+            nullable=default_as_none(self.__nullable, False),
             format=self.meta["data_format"],
             # deprecated=_spec.default_as_none(self.deprecated, False),
         )
@@ -535,12 +536,12 @@ class Model(Schema, metaclass=ModelMeta):
 
             if val is EMPTY:
                 if field._required:
-                    error._setitem_error(
-                        field._alias,  # type: ignore
-                        ValidationError("This field is required."),
+                    error.setitem_error(
+                        field._alias,
+                        field._create_validation_error(key="required"),
                     )
 
-                default = field.options["default"]
+                default = field._default
                 if default is not EMPTY:
                     rv[field._attr] = default() if callable(default) else default
 
@@ -549,7 +550,7 @@ class Model(Schema, metaclass=ModelMeta):
             try:
                 rv[field._attr] = field.deserialize(val)
             except ValidationError as exc:
-                error._setitem_error(field._alias, exc)  # type: ignore
+                error.setitem_error(field._alias, exc)  # type: ignore
 
         if self._unknown_fields == EXCLUDE:
             pass
@@ -557,7 +558,7 @@ class Model(Schema, metaclass=ModelMeta):
             rv.update(data)
         elif self._unknown_fields == ERROR and data:
             for key in data:
-                error._setitem_error(key, ValidationError("Unknown field."))
+                error.setitem_error(key, ValidationError("Unknown field."))
 
         if error._nonempty:
             raise error
@@ -616,11 +617,10 @@ class String(Schema):
         max_length: t.Optional[int] = None,
         **kwargs,
     ):
-        super().__init__(
-            **kwargs,
-            min_length=min_length,
-            max_length=max_length,
-        )
+        super().__init__(**kwargs)
+
+        self.__min_length = min_length
+        self.__max_length = max_length
 
         # pattern
         self.__pattern = None
@@ -643,8 +643,8 @@ class String(Schema):
         result = super().__openapispec__(spec)
         result.update(
             pattern=self.__pattern,
-            minLength=self.options["min_length"],
-            maxLength=self.options["max_length"],
+            minLength=self.__min_length,
+            maxLength=self.__max_length,
         )
         return result
 
@@ -661,10 +661,10 @@ class Number(Schema):
     ):
         super().__init__(**kwargs)
 
-        self._gt = gt
-        self._gte = gte
-        self._lt = lt
-        self._lte = lte
+        self.__gt = gt
+        self.__gte = gte
+        self.__lt = lt
+        self.__lte = lte
         if any(i is not None for i in (gt, gte, lt, lte)):
             self._validators.append(
                 _validators.RangeValidator(gt=gt, gte=gte, lt=lt, lte=lte)
@@ -677,10 +677,10 @@ class Number(Schema):
     def __openapispec__(self, spec, **kwargs):
         result = super().__openapispec__(spec, **kwargs)
         result.update(
-            maximum=self._lte if self._lt is None else self._lt,
-            exclusiveMaximum=self._lt is not None or None,
-            minimum=self._gte if self._gt is None else self._gt,
-            exclusiveMinimum=self._gt is not None or None,
+            maximum=self.__lte if self.__lt is None else self.__lt,
+            exclusiveMaximum=self.__lt is not None or None,
+            minimum=self.__gte if self.__gt is None else self.__gt,
+            exclusiveMinimum=self.__gt is not None or None,
             multipleOf=self._multiple_of,
         )
         return result
@@ -789,12 +789,10 @@ class List(Schema):
         unique_items: bool = False,
         **kwargs,
     ):
-        super().__init__(
-            **kwargs,
-            min_items=min_items,
-            max_items=max_items,
-            unique_items=unique_items,
-        )
+        super().__init__(**kwargs)
+        self.__min_items = (min_items,)
+        self.__max_items = (max_items,)
+        self.__unique_items = (unique_items,)
         self.__item: Schema = make_instance(item or Any)
         if max_items is not None or min_items is not None:
             self._validators.append(_validators.LengthValidator(min_items, max_items))
@@ -809,7 +807,7 @@ class List(Schema):
             try:
                 rv.append(self.__item.deserialize(item))
             except ValidationError as exc:
-                error._setitem_error(index, exc)
+                error.setitem_error(index, exc)
 
         if error._nonempty:
             raise error
@@ -825,9 +823,9 @@ class List(Schema):
         result = super().__openapispec__(spec)
         result.update(
             items=spec.parse(self.__item),
-            maxItems=self.options["max_items"],
-            minItems=self.options["min_items"],
-            uniqueItems=default_as_none(self.options["unique_items"], False),
+            maxItems=self.__max_items,
+            minItems=self.__min_items,
+            uniqueItems=default_as_none(self.__unique_items, False),
         )
         return result
 
@@ -850,11 +848,9 @@ class Dict(Schema):
         min_properties: t.Optional[int] = None,
         **kwargs,
     ):
-        super().__init__(
-            **kwargs,
-            max_properties=max_properties,
-            min_properties=min_properties,
-        )
+        super().__init__(**kwargs)
+        self.__max_properties = (max_properties,)
+        self.__min_properties = (min_properties,)
         self.__value: Schema = make_instance(value or Any)
 
         if min_properties is not None or max_properties is not None:
@@ -871,7 +867,7 @@ class Dict(Schema):
             try:
                 val = self.__value.deserialize(val)
             except ValidationError as e:
-                err._setitem_error(key, e)
+                err.setitem_error(key, e)
             rv[key] = val
 
         if err._nonempty:
@@ -886,8 +882,8 @@ class Dict(Schema):
         result = super().__openapispec__(spec)
         result.update(
             additionalProperties=spec.parse(self.__value),
-            maxProperties=self.options["max_properties"],
-            minProperties=self.options["min_properties"],
+            maxProperties=self.__max_properties,
+            minProperties=self.__min_properties,
         )
         return result
 

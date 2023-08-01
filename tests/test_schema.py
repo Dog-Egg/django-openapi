@@ -115,3 +115,23 @@ def test_deserialize_error(schemaobj, input, err):
         except schema.ValidationError as e:
             assert e.format_errors() == err
             raise e
+
+
+def test_ValidationError_error_messages():
+    e1 = schema.ValidationError()
+    e2 = schema.ValidationError(key="required")
+
+    e3 = schema.ValidationError(key="required")
+    e3.update_error_message({"required": "这个值是必须的。"})
+
+    e4 = schema.ValidationError("发生了一些错误")
+
+    e1.setitem_error("e2", e2)
+    e1.setitem_error("e3", e3)
+    e1.setitem_error("e4", e4)
+
+    assert e1.format_errors() == [
+        {"loc": ["e2"], "msgs": ["This field is required."]},
+        {"loc": ["e3"], "msgs": ["这个值是必须的。"]},
+        {"loc": ["e4"], "msgs": ["发生了一些错误"]},
+    ]

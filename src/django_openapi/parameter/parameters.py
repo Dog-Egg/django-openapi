@@ -171,7 +171,7 @@ class RequestParameter(RequestData, abc.ABC):
                     "name": field._alias,
                     "in": self.location,
                     "required": default_as_none(field._required, False),
-                    "description": field.options["description"] or None,
+                    "description": field._description or None,
                     "schema": spec.parse(field),
                     "style": style.style,
                     "explode": style.explode,
