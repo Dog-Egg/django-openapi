@@ -137,7 +137,7 @@ def test_ValidationError_error_messages():
     ]
 
 
-def test_Password_invalid_value():
+def test_Password_clear_value():
     class User(schema.Model):
         password = schema.Password()  # Password 仅判断空字符串为无效值
 

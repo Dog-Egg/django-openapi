@@ -70,12 +70,12 @@ Model
      'title': '三体'}
 
 
-无效的字段值
--------------
+clear_value
+-----------
 
-``invalid_value`` 用于在对字段进行反序列化时，如果输入的字段值被判断为无效值，则会被当成未提供处理。默认的无效值是输入空白字符串。
+在 ``Model`` 反序列化时，为字段清除无意义的值。
 
-如下所示字段 a 为必需提供的，虽然反序列化时提供了一个空字符，但默认 ``""`` 是无效的，相当与为提供字段值。
+默认定义了空白字符串为无意义值。如下所示: 字段 a 为必需的，虽然反序列化时为其提供了一个空字符，但空字符串默认是无意义的，所以会在处理时被清除。
 
 .. testcode::
 
@@ -92,3 +92,41 @@ Model
     Traceback (most recent call last):
         ...
     django_openapi_schema.exceptions.ValidationError: [{'msgs': ['This field is required.'], 'loc': ['a']}]
+
+需要为 ``clear_value`` 提供一个函数，函数返回 `True`，则值会被清除；返回 `False` 则不做处理。
+
+.. testcode::
+
+    # 把 0 作为无意义的值处理
+    def clear_value(value):
+        return value == 0
+
+    class User(schema.Model):
+        age = schema.Integer(clear_value=clear_value)
+
+    User().deserialize({'age': 0})
+
+.. testoutput::
+
+    Traceback (most recent call last):
+        ...
+    django_openapi_schema.exceptions.ValidationError: [{'msgs': ['This field is required.'], 'loc': ['age']}]
+
+
+将 ``clear_value`` 设为 `None` 可以禁用此设置。
+
+.. testcode::
+
+    class Foo(schema.Model):
+        a = schema.String(clear_value=None)
+
+    print(Foo().deserialize({'a': ''}))
+
+.. testoutput::
+
+    {'a': ''}
+
+
+.. note::
+    ``clear_value`` 在对 HTTP 请求处理 Query 参数时很有用。如: ?a=&b=1 转为字典后为 ``{'a': '', 'b': '1'}``，其中 a 参数的空字符串大多数情况下并无意义，所以应当被清除。
+
