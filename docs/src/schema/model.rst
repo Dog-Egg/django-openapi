@@ -1,8 +1,11 @@
+Schema
+========
+
 Model
-=====
+-----
 
 定义
-----
+^^^^
 
 .. code-block::
 
@@ -16,8 +19,8 @@ Model
     {'name': '张三', 'birthday': datetime.date(2000, 3, 4)}
 
 
-字段继承
-^^^^^^^^
+继承
+^^^^
 
 .. code-block::
     :caption: 单继承
@@ -51,7 +54,7 @@ Model
 
 
 嵌套
-^^^^^^
+^^^^
 
 .. code-block::
 
@@ -71,7 +74,7 @@ Model
 
 
 clear_value
------------
+^^^^^^^^^^^
 
 在 ``Model`` 反序列化时，为字段清除无意义的值。
 
@@ -130,3 +133,21 @@ clear_value
 .. note::
     ``clear_value`` 在对 HTTP 请求处理 Query 参数时很有用。如: ?a=&b=1 转为字典后为 ``{'a': '', 'b': '1'}``，其中 a 参数的空字符串大多数情况下并无意义，所以应当被清除。
 
+
+前后置处理
+----------
+
+deserialization_post
+^^^^^^^^^^^^^^^^^^^^
+
+反序列后置处理
+
+.. testcode::
+
+    # 去除字符串前后多余的空白符
+    email = schema.String(deserialization_post=str.strip)
+    print(repr(email.deserialize('123@example.com  ')))
+
+.. testoutput::
+
+    '123@example.com'

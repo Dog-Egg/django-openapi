@@ -259,6 +259,7 @@ class Schema(Field, metaclass=SchemaMeta):
         description: str = "",
         clear_value: t.Optional[t.Callable[[t.Any], bool]] = default_clear_value,
         error_messages: t.Optional[dict] = None,
+        deserialization_post: t.Optional[t.Callable] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -269,6 +270,7 @@ class Schema(Field, metaclass=SchemaMeta):
         self.__choices = choices
         self.__error_messages = error_messages or {}
         self._clear_value = clear_value
+        self.__deserialization_post = deserialization_post
 
         self._validators = validators or []
         if choices is not None:
@@ -324,6 +326,9 @@ class Schema(Field, metaclass=SchemaMeta):
                 error.concat_error(exc)
         if error._nonempty:
             raise error
+
+        if self.__deserialization_post is not None:
+            value = self.__deserialization_post(value)
 
         return value
 
