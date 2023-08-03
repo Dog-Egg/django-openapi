@@ -725,9 +725,13 @@ class Integer(Number):
 
     def _deserialize(self, value) -> int:
         try:
-            return int(value)
+            f = float(value)
+            i = int(f)
+            if i != f:
+                raise ValueError
         except ValueError:
             raise ValidationError("Not a valid integer.")
+        return i
 
     def _serialize(self, value) -> int:
         return int(value)

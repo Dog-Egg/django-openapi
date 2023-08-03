@@ -98,6 +98,20 @@ def test_serialize(schemaobj, input, output):
 
 
 @pytest.mark.parametrize(
+    "schemaobj, input, output",
+    [
+        (schema.Integer(), "1.0", 1),
+        (schema.Integer(), "1", 1),
+        (schema.Integer(), 1, 1),
+    ],
+)
+def test_deserialize(schemaobj, input, output):
+    result = schemaobj.deserialize(input)
+    assert result == output
+    assert type(result) is type(output)
+
+
+@pytest.mark.parametrize(
     "schemaobj, input, err",
     [
         (schema.Integer(), "a", [{"msgs": ["Not a valid integer."]}]),
@@ -107,6 +121,7 @@ def test_serialize(schemaobj, input, output):
             [{"msgs": ["Not a valid integer."], "loc": ["b"]}],
         ),
         (schema.Float(), {}, [{"msgs": ["Deserialization failure."]}]),
+        (schema.Integer(), "1.1", [{"msgs": ["Not a valid integer."]}]),
     ],
 )
 def test_deserialize_error(schemaobj, input, err):
