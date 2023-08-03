@@ -303,7 +303,12 @@ class Schema(Field, metaclass=SchemaMeta):
             else:
                 raise ValidationError("The value cannot be null.")
 
-        value = self._deserialize(value)
+        try:
+            value = self._deserialize(value)
+        except Exception as e:
+            if isinstance(e, ValidationError):
+                raise
+            raise ValidationError("Deserialization failure.")
 
         def get_validators():
             # field hook

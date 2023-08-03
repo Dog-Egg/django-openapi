@@ -106,6 +106,7 @@ def test_serialize(schemaobj, input, output):
             {"a": 1, "b": "b"},
             [{"msgs": ["Not a valid integer."], "loc": ["b"]}],
         ),
+        (schema.Float(), {}, [{"msgs": ["Deserialization failure."]}]),
     ],
 )
 def test_deserialize_error(schemaobj, input, err):
