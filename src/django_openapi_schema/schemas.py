@@ -755,12 +755,30 @@ class Boolean(Schema):
 
 
 class Datetime(Schema):
+    """
+    :param with_tz: 仅反序列可用，如果为 `True` 要求反序列所得 datetime 对象必须包含时区；如果为 `False` 则不能包含时区。默认为 `None`，不做时区要求。
+    """
+
     class Meta:
         data_type = "string"
         data_format = "date-time"
 
+    def __init__(self, *, with_tz: t.Union[bool, None] = None, **kwargs):
+        super().__init__(**kwargs)
+        self.__with_tz = with_tz
+
     def _deserialize(self, value: str) -> datetime.datetime:
-        return isoparse(value)
+        try:
+            dt = isoparse(value)
+        except (ValueError, TypeError):
+            raise ValidationError("Not a valid datetime string.")
+
+        if self.__with_tz is not None:
+            if self.__with_tz and dt.utcoffset() is None:
+                raise ValidationError("Not support timezone-naive datetime.")
+            elif not self.__with_tz and dt.utcoffset() is not None:
+                raise ValidationError("Not support timezone-aware datetime.")
+        return dt
 
     def _serialize(self, value: datetime.datetime) -> str:
         return value.isoformat()

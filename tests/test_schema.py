@@ -1,4 +1,5 @@
 import re
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -89,6 +90,13 @@ def test_ValiationError():
     "schemaobj, input, output",
     [
         (schema.Float(), "0", 0.0),
+        (schema.Float(), ".2", 0.2),
+        (schema.Datetime(), datetime(2000, 1, 1), "2000-01-01T00:00:00"),
+        (
+            schema.Datetime(),
+            datetime(2000, 1, 1, tzinfo=timezone(timedelta(hours=8))),
+            "2000-01-01T00:00:00+08:00",
+        ),
     ],
 )
 def test_serialize(schemaobj, input, output):
@@ -103,6 +111,13 @@ def test_serialize(schemaobj, input, output):
         (schema.Integer(), "1.0", 1),
         (schema.Integer(), "1", 1),
         (schema.Integer(), 1, 1),
+        (schema.Float(), ".2", 0.2),
+        (schema.Datetime(), "2022-01-01 08:00", datetime(2022, 1, 1, 8)),
+        (
+            schema.Datetime(),
+            "2022-01-01 07:00+08:00",
+            datetime(2022, 1, 1, 7, tzinfo=timezone(timedelta(hours=8))),
+        ),
     ],
 )
 def test_deserialize(schemaobj, input, output):
@@ -122,6 +137,16 @@ def test_deserialize(schemaobj, input, output):
         ),
         (schema.Float(), {}, [{"msgs": ["Deserialization failure."]}]),
         (schema.Integer(), "1.1", [{"msgs": ["Not a valid integer."]}]),
+        (
+            schema.Datetime(with_tz=True),
+            "2022-01-01 08:00",
+            [{"msgs": ["Not support timezone-naive datetime."]}],
+        ),
+        (
+            schema.Datetime(with_tz=False),
+            "2022-01-01 08:00+08:00",
+            [{"msgs": ["Not support timezone-aware datetime."]}],
+        ),
     ],
 )
 def test_deserialize_error(schemaobj, input, err):
