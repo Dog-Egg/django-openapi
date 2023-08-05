@@ -187,19 +187,6 @@ class Schema(Field, metaclass=SchemaMeta):
             {'username': '未命名用户', 'address': '未提供'}
 
     :param choices: 如果提供，则反序列时的值必须是选择中的一个。
-
-        .. code-block::
-
-            >>> fruit = String(choices=['apple', 'watermelon', 'grape'])
-
-            >>> fruit.deserialize('apple')
-            'apple'
-
-            >>> fruit.deserialize('banana')
-            Traceback (most recent call last):
-                ...
-            django_openapi_schema.exceptions.ValidationError: [{'msgs': ["The value must be one of 'apple', 'watermelon', 'grape'."]}]
-
     :param nullable: 设置为 `True`，序列化和反序列化将允许输出 `None`，默认 `False`。
 
         .. code-block::
