@@ -18,10 +18,6 @@ class File(schema.Schema):
         data_type = "string"
         data_format = "binary"
 
-    def __init__(self, *args, **kwargs):
-        kwargs.pop("max_length", None)
-        super().__init__(*args, **kwargs)
-
     def _serialize(self, obj):
         return obj.url
 

@@ -11,24 +11,38 @@ from django_openapi.utils.django import django_validator_wraps
 from . import schema
 
 
-class Convertor:
-    schema_cls: t.Type[schema.Schema]
+def filter_defaults(kwargs: dict):
+    _kwargs = kwargs.copy()
+    defaults = {
+        "required": None,
+        "read_only": False,
+        "default": schema.EMPTY,
+        "choices": None,
+        "validators": [],
+        "description": "",
+        "nullable": False,
+    }
+    for k in kwargs.keys():
+        if k in defaults and defaults[k] == kwargs[k]:
+            del _kwargs[k]
+    return _kwargs
 
-    def __init__(self, schema_cls=None):
-        if schema_cls is not None:
-            self.schema_cls = schema_cls
 
-    def convert(self, field, extra_kwargs=None):
-        kwargs = self.extract_arguments(field)
-        if extra_kwargs:
-            kwargs.update(extra_kwargs)
-        return self.schema_cls(**kwargs)
+class Parser:
+    schemaclass: t.Type[schema.Schema]
 
-    def extract_arguments(self, field: models.Field):
-        return {
+    def __init__(self, schemaclass=None):
+        if schemaclass is not None:
+            self.schemaclass = schemaclass
+
+    def parse(self, field):
+        kwargs = {
             **self.get_common_kwargs(field),
             **self.get_own_kwargs(field),
         }
+
+        # 删除有默认值的参数，方便测试
+        return self.schemaclass, filter_defaults(kwargs)
 
     def get_own_kwargs(self, field) -> dict:
         return {}
@@ -63,19 +77,6 @@ class Convertor:
         if isinstance(field.max_length, int):
             kwargs.update(max_length=field.max_length)
 
-        defaults = {  # 删除有默认值的参数
-            "required": None,
-            "read_only": False,
-            "default": schema.EMPTY,
-            "choices": None,
-            "validators": [],
-            "description": "",
-            "nullable": False,
-        }
-        for k, v in kwargs.copy().items():
-            if k in defaults and defaults[k] == kwargs[k]:
-                del kwargs[k]
-
         return kwargs
 
     @staticmethod
@@ -100,16 +101,16 @@ class Convertor:
         return validators
 
 
-class CharConvertor(Convertor):
-    schema_cls = schema.String
+class CharParser(Parser):
+    schemaclass = schema.String
 
     def get_validators(self, validators):
         # 验证器重复
         return [v for v in validators if not isinstance(v, MaxLengthValidator)]
 
 
-class DecimalConvertor(Convertor):
-    schema_cls = schema.Float
+class DecimalParser(Parser):
+    schemaclass = schema.Float
 
     def get_validators(self, validators):
         # 验证器冲突
@@ -123,64 +124,55 @@ class DecimalConvertor(Convertor):
         )
 
 
-class ForeignKeyConvertor(Convertor):
-    def convert(self, field, extra_kwargs=None):
+class ForeignKeyParser(Parser):
+    def parse(self, field):
         target_field = field.target_field
-        convertor = match_convertor(type(target_field))
-        if not convertor:
-            return
-
-        kwargs = self.get_common_kwargs(field)
-        if extra_kwargs:
-            kwargs.update(extra_kwargs)
-        return convertor.convert(target_field, extra_kwargs=kwargs)
+        parser = match_parser(type(target_field))
+        schemaclass, kwargs = parser.parse(target_field)
+        self_kwargs = self.get_common_kwargs(field)
+        kwargs.update(self_kwargs)
+        return schemaclass, filter_defaults(kwargs)
 
 
-MODEL_FIELD_CONVERTORS = {
-    # models.AutoField: Convertor(schema.Integer),
-    # models.BigAutoField: Convertor(schema.Integer),
-    # models.BigIntegerField: Convertor(schema.Integer),
-    models.BooleanField: Convertor(schema.Boolean),
-    # models.NullBooleanField: Convertor(schema.Boolean),
-    models.CharField: CharConvertor(),
-    models.IntegerField: Convertor(schema.Integer),
-    # models.TextField: Convertor(schemas.String),
-    models.DateField: Convertor(schema.Date),
-    models.DateTimeField: Convertor(schema.Datetime),
-    # models.EmailField: Convertor(schemas.String),
-    # models.URLField: Convertor(schemas.String),
-    models.FileField: Convertor(schema.File),
-    # models.FloatField: Convertor(schemas.Float),
-    # models.IntegerField: Convertor(schemas.Integer),
-    # models.PositiveIntegerField: Convertor(schemas.Integer),
-    # models.PositiveSmallIntegerField: Convertor(schemas.Integer),
-    models.DecimalField: DecimalConvertor(),
-    models.ForeignKey: ForeignKeyConvertor(),
-    models.JSONField: Convertor(schema.Any),
+class FileParser(Parser):
+    schemaclass = schema.File
+
+    def get_common_kwargs(self, field):
+        kwargs = super().get_common_kwargs(field)
+        kwargs.pop("max_length")
+        return kwargs
+
+
+MODEL_FIELD_PARSERS = {
+    models.BooleanField: Parser(schema.Boolean),
+    models.CharField: CharParser(),
+    models.IntegerField: Parser(schema.Integer),
+    models.DateField: Parser(schema.Date),
+    models.DateTimeField: Parser(schema.Datetime),
+    models.FileField: FileParser(),
+    models.DecimalField: DecimalParser(),
+    models.ForeignKey: ForeignKeyParser(),
+    models.JSONField: Parser(schema.Any),
 }
 if django.VERSION >= (3, 1):
-    MODEL_FIELD_CONVERTORS.update(
-        {
-            # models.PositiveBigIntegerField: Convertor(schemas.Integer),
-        }
-    )
+    MODEL_FIELD_PARSERS.update({})
 
 
-def match_convertor(
+def match_parser(
     fieldclass: t.Type[models.Field],
-) -> t.Optional[Convertor]:
+) -> Parser:
     """
-    从 MODEL_FIELD_CONVERTORS 查找可以直接使用的转换器，
-    或使用 field class 父类查找是否有匹配的转换器。
+    从 MODEL_FIELD_PARSERS 查找可以直接使用的解析器，
+    或使用 field class 父类查找是否有匹配的解析器。
     """
     for cls in inspect.getmro(fieldclass):
-        if cls in MODEL_FIELD_CONVERTORS:
-            return MODEL_FIELD_CONVERTORS[cls]
+        if cls in MODEL_FIELD_PARSERS:
+            return MODEL_FIELD_PARSERS[cls]
     raise NotImplementedError(fieldclass)
 
 
 def model2schema(
-    model: t.Type[models.Model],
+    modelcls: t.Type[models.Model],
     *,
     include_fields: t.Optional[t.List[str]] = None,
     extra_kwargs: t.Optional[t.Dict[str, dict]] = None,
@@ -189,31 +181,35 @@ def model2schema(
     _include_fields = None if include_fields is None else set(include_fields)
 
     fields = {}
-    # noinspection PyUnresolvedReferences,PyProtectedMember
-    for field in model._meta.fields:
-        field: models.Field  # type: ignore
-        model_field_name = field.attname
-
+    for fieldname, (schemaclass, kwargs) in parse(modelcls).items():
         if _include_fields is not None:
-            if model_field_name in _include_fields:
-                _include_fields.remove(model_field_name)
+            if fieldname in _include_fields:
+                _include_fields.remove(fieldname)
             else:
                 continue
 
-        convertor = match_convertor(type(field))
-        if not convertor:
-            continue
-        fields[model_field_name] = convertor.convert(
-            field,
-            extra_kwargs=extra_kwargs.pop(model_field_name, None),
-        )
+        if fieldname in extra_kwargs:
+            kwargs.update(extra_kwargs.pop(fieldname))
+
+        fields[fieldname] = schemaclass(**kwargs)
 
     if _include_fields:
-        raise ValueError(f"Unknown include_fields: {_include_fields}")
+        raise ValueError(f"Unknown include_fields: {_include_fields}.")
 
     if extra_kwargs:
         raise ValueError(
-            "Unknown extra_kwargs keys: %s." % ", ".join(extra_kwargs.keys())
+            f"Unknown extra_kwargs keys: {', '.join(extra_kwargs.keys())}."
         )
 
     return schema.Model.from_dict(fields)
+
+
+def parse(
+    modelclass: t.Type[models.Model],
+) -> t.Dict[str, t.Tuple[t.Type[schema.Schema], dict]]:
+    result = {}
+    for field in modelclass._meta.fields:
+        fieldname = field.attname
+        parser = match_parser(type(field))
+        result[fieldname] = parser.parse(field)
+    return result
