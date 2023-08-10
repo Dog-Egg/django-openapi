@@ -832,9 +832,9 @@ class List(Schema):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.__min_items = (min_items,)
-        self.__max_items = (max_items,)
-        self.__unique_items = (unique_items,)
+        self.__min_items = min_items
+        self.__max_items = max_items
+        self.__unique_items = unique_items
         self.__item: Schema = make_instance(item or Any)
         if max_items is not None or min_items is not None:
             self._validators.append(_validators.LengthValidator(min_items, max_items))

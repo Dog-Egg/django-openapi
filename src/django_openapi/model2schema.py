@@ -8,11 +8,6 @@ from django.db import models
 
 from django_openapi.utils.django import django_validator_wraps
 
-try:
-    from django.db.models import JSONField
-except ImportError:
-    JSONField = None
-
 from . import schema
 
 
@@ -161,7 +156,7 @@ MODEL_FIELD_CONVERTORS = {
     # models.PositiveSmallIntegerField: Convertor(schemas.Integer),
     models.DecimalField: DecimalConvertor(),
     models.ForeignKey: ForeignKeyConvertor(),
-    # JSONField: Convertor(schema.Any),
+    models.JSONField: Convertor(schema.Any),
 }
 if django.VERSION >= (3, 1):
     MODEL_FIELD_CONVERTORS.update(

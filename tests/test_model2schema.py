@@ -30,6 +30,11 @@ def test_DecimalField():
     }
 
 
+def test_JSONField():
+    kwargs = extract_arguments(models.JSONField())
+    assert kwargs == {}
+
+
 def test_include_fields():
     """测试 include_fields 中的未知字段。"""
 
