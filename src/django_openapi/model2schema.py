@@ -1,5 +1,5 @@
 import inspect
-import typing
+import typing as t
 from decimal import Decimal
 
 import django
@@ -17,7 +17,7 @@ from . import schema
 
 
 class Convertor:
-    schema_cls: typing.Type[schema.Schema]
+    schema_cls: t.Type[schema.Schema]
 
     def __init__(self, schema_cls=None):
         if schema_cls is not None:
@@ -172,8 +172,8 @@ if django.VERSION >= (3, 1):
 
 
 def match_convertor(
-    fieldclass: typing.Type[models.Field],
-) -> typing.Optional[Convertor]:
+    fieldclass: t.Type[models.Field],
+) -> t.Optional[Convertor]:
     """
     从 MODEL_FIELD_CONVERTORS 查找可以直接使用的转换器，
     或使用 field class 父类查找是否有匹配的转换器。
@@ -185,20 +185,26 @@ def match_convertor(
 
 
 def model2schema(
-    model: typing.Type[models.Model],
+    model: t.Type[models.Model],
     *,
-    include_fields=None,
-    extra_kwargs=None,
-) -> typing.Type[schema.Model]:
+    include_fields: t.Optional[t.List[str]] = None,
+    extra_kwargs: t.Optional[t.Dict[str, dict]] = None,
+) -> t.Type[schema.Model]:
     extra_kwargs = extra_kwargs or {}
+    _include_fields = None if include_fields is None else set(include_fields)
 
     fields = {}
     # noinspection PyUnresolvedReferences,PyProtectedMember
     for field in model._meta.fields:
         field: models.Field  # type: ignore
         model_field_name = field.attname
-        if include_fields is not None and model_field_name not in include_fields:
-            continue
+
+        if _include_fields is not None:
+            if model_field_name in _include_fields:
+                _include_fields.remove(model_field_name)
+            else:
+                continue
+
         convertor = match_convertor(type(field))
         if not convertor:
             continue
@@ -207,10 +213,12 @@ def model2schema(
             extra_kwargs=extra_kwargs.pop(model_field_name, None),
         )
 
-    # 避免修改 model 字段名后忘记修改此处，所以对没用的 extra_kwargs 报错
+    if _include_fields:
+        raise ValueError(f"Unknown include_fields: {_include_fields}")
+
     if extra_kwargs:
         raise ValueError(
-            "Redundant extra_kwargs keys: %s." % ", ".join(extra_kwargs.keys())
+            "Unknown extra_kwargs keys: %s." % ", ".join(extra_kwargs.keys())
         )
 
     return schema.Model.from_dict(fields)

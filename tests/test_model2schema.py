@@ -1,3 +1,4 @@
+import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import models
 
@@ -27,3 +28,13 @@ def test_DecimalField():
         "exclusive_maximum": True,
         "multiple_of": 0.01,
     }
+
+
+def test_include_fields():
+    """测试 include_fields 中的未知字段。"""
+
+    class FooModel(models.Model):
+        a = models.CharField()
+
+    with pytest.raises(ValueError, match="Unknown include_fields: {'b'}"):
+        model2schema(FooModel, include_fields=["b"])
