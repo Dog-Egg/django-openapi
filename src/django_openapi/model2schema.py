@@ -175,10 +175,13 @@ def model2schema(
     modelcls: t.Type[models.Model],
     *,
     include_fields: t.Optional[t.List[str]] = None,
+    exclude_fields: t.Optional[t.List[str]] = None,
     extra_kwargs: t.Optional[t.Dict[str, dict]] = None,
 ) -> t.Type[schema.Model]:
-    extra_kwargs = extra_kwargs or {}
+    if include_fields is not None and exclude_fields is not None:
+        raise ValueError("Cannot set both 'include_fields' and 'exclude_fields'.")
     _include_fields = None if include_fields is None else set(include_fields)
+    _exclude_fields = None if exclude_fields is None else set(exclude_fields)
 
     fields = {}
     for fieldname, (schemaclass, kwargs) in parse(modelcls).items():
@@ -188,13 +191,20 @@ def model2schema(
             else:
                 continue
 
-        if fieldname in extra_kwargs:
+        if _exclude_fields is not None:
+            if fieldname in _exclude_fields:
+                _exclude_fields.remove(fieldname)
+                continue
+
+        if extra_kwargs and fieldname in extra_kwargs:
             kwargs.update(extra_kwargs.pop(fieldname))
 
         fields[fieldname] = schemaclass(**kwargs)
 
     if _include_fields:
         raise ValueError(f"Unknown include_fields: {_include_fields}.")
+    if _exclude_fields:
+        raise ValueError(f"Unknown exclude_fields: {_exclude_fields}.")
 
     if extra_kwargs:
         raise ValueError(

@@ -63,11 +63,14 @@ def test_FileField():
     assert FieldSchema().serialize(inst) == {"file": "/123.txt"}
 
 
-def test_include_fields():
+def test_include_exclude_fields():
     """测试 include_fields 中的未知字段。"""
 
     class FooModel(models.Model):
         a = models.CharField()
 
-    with pytest.raises(ValueError, match="Unknown include_fields: {'b'}"):
+    with pytest.raises(ValueError, match="Unknown include_fields: {'b'}."):
         model2schema(FooModel, include_fields=["b"])
+
+    with pytest.raises(ValueError, match="Unknown exclude_fields: {'b'}."):
+        model2schema(FooModel, exclude_fields=["b"])
