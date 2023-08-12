@@ -107,7 +107,7 @@ class OpenAPISpec:
     def add_path(self, path, pathitem):
         self.__paths[path] = pathitem
 
-    def add_security_scheme(self, key, obj):
+    def set_security_scheme(self, key, obj):
         self.__security_schemes[key] = obj
 
     def to_dict(self):

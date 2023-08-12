@@ -13,9 +13,9 @@ class MyAuthBase(BaseAuth):
         # 该方法用于生成 OAS security 的定义，
         # 如果不需要向 OAS 提示认证定义，可忽略实现该方法。
 
-        # spec.add_security_scheme 函数向 OAS securitySchemes
-        # 部分添加一个 Security Scheme Objects.
-        spec.add_security_scheme(
+        # spec.set_security_scheme 函数向 OAS securitySchemes
+        # 部分设置一个 Security Scheme Objects.
+        spec.set_security_scheme(
             "token",
             {
                 "type": "http",

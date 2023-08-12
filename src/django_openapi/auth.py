@@ -30,7 +30,7 @@ class DjangoAuthBase(BaseAuth):
 
     def __openapispec__(self, spec: OpenAPISpec, **kwargs):
         key = "__auth__"
-        spec.add_security_scheme(
+        spec.set_security_scheme(
             key,
             {
                 "type": "apiKey",
