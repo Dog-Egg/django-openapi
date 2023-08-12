@@ -128,6 +128,23 @@ class FileParser(Parser):
         return kwargs
 
 
+class DecimalParser(Parser):
+    schemaclass = schema.Float
+
+    def get_validators(self, validators):
+        for validator in validators:
+            if isinstance(validator, DecimalValidator):
+
+                def wrapper(value):
+                    if isinstance(value, float):
+                        value = Decimal(str(value))
+                    return validator(value)
+
+                yield wrapper
+            else:
+                yield validator
+
+
 MODEL_FIELD_PARSERS = {
     models.BooleanField: Parser(schema.Boolean),
     models.CharField: CharParser(),
@@ -135,7 +152,7 @@ MODEL_FIELD_PARSERS = {
     models.DateField: Parser(schema.Date),
     models.DateTimeField: Parser(schema.Datetime),
     models.FileField: FileParser(),
-    models.DecimalField: Parser(schema.Float),
+    models.DecimalField: DecimalParser(),
     models.ForeignKey: ForeignKeyParser(),
     models.JSONField: Parser(schema.Any),
 }

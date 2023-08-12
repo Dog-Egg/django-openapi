@@ -28,10 +28,6 @@ def test_A():
     assert result["JSONField"] == (schema.Any, {})
     assert result["FileField"] == (schema.File, {})
 
-    schemaclass, kwargs = result["DecimalField"]
-    assert schemaclass is schema.Float
-    assert len(kwargs) == 1 and len(kwargs["validators"]) == 1
-
 
 class B(models.Model):
     a1 = models.ForeignKey(A, on_delete=models.CASCADE)
@@ -74,3 +70,22 @@ def test_include_exclude_fields():
 
     with pytest.raises(ValueError, match="Unknown exclude_fields: {'b'}."):
         model2schema(FooModel, exclude_fields=["b"])
+
+
+def test_DecimalField():
+    class FooModel2(models.Model):
+        a = models.DecimalField(max_digits=5)
+
+    FooSchema = model2schema(FooModel2)
+
+    with pytest.raises(schema.ValidationError):
+        try:
+            FooSchema().deserialize({"a": "123.122"})
+        except schema.ValidationError as e:
+            assert e.format_errors() == [
+                {
+                    "msgs": ["Ensure that there are no more than 5 digits in total."],
+                    "loc": ["a"],
+                }
+            ]
+            raise
