@@ -16,21 +16,21 @@ class A(models.Model):
 
 
 def test_A():
-    assert parse(A) == {
-        "id": (
-            schema.Integer,
-            {"description": "ID", "read_only": True, "required": False},
-        ),
-        "CharField": (schema.String, {"max_length": 12}),
-        "IntegerField": (schema.Integer, {}),
-        "SmallIntegerField": (schema.Integer, {}),
-        "DecimalField": (
-            schema.Float,
-            {"exclusive_maximum": True, "maximum": 1000, "multiple_of": 0.01},
-        ),
-        "JSONField": (schema.Any, {}),
-        "FileField": (schema.File, {}),
-    }
+    result = parse(A)
+
+    assert result["id"] == (
+        schema.Integer,
+        {"description": "ID", "read_only": True, "required": False},
+    )
+    assert result["CharField"] == (schema.String, {"max_length": 12})
+    assert result["IntegerField"] == (schema.Integer, {})
+    assert result["SmallIntegerField"] == (schema.Integer, {})
+    assert result["JSONField"] == (schema.Any, {})
+    assert result["FileField"] == (schema.File, {})
+
+    schemaclass, kwargs = result["DecimalField"]
+    assert schemaclass is schema.Float
+    assert len(kwargs) == 1 and len(kwargs["validators"]) == 1
 
 
 class B(models.Model):

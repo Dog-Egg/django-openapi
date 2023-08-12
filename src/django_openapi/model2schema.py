@@ -109,21 +109,6 @@ class CharParser(Parser):
         return [v for v in validators if not isinstance(v, MaxLengthValidator)]
 
 
-class DecimalParser(Parser):
-    schemaclass = schema.Float
-
-    def get_validators(self, validators):
-        # 验证器冲突
-        return [v for v in validators if not isinstance(v, DecimalValidator)]
-
-    def get_own_kwargs(self, field: models.DecimalField) -> dict:
-        maximum = 10 ** (field.max_digits - field.decimal_places)
-        multiple_of = Decimal("0.1") ** field.decimal_places
-        return dict(
-            maximum=maximum, exclusive_maximum=True, multiple_of=float(multiple_of)
-        )
-
-
 class ForeignKeyParser(Parser):
     def parse(self, field):
         target_field = field.target_field
@@ -150,7 +135,7 @@ MODEL_FIELD_PARSERS = {
     models.DateField: Parser(schema.Date),
     models.DateTimeField: Parser(schema.Datetime),
     models.FileField: FileParser(),
-    models.DecimalField: DecimalParser(),
+    models.DecimalField: Parser(schema.Float),
     models.ForeignKey: ForeignKeyParser(),
     models.JSONField: Parser(schema.Any),
 }
