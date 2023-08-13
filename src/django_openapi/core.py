@@ -148,9 +148,14 @@ class OpenAPI:
     def get_spec(self) -> dict:
         return self.__spec.to_dict()
 
-    def spec_view(self, request):
+    def spec_view(self, request: HttpRequest):
         oas = self.get_spec()
-        prefix = request.path[: -len(self.__spec_endpoint)]
+
+        script_name = request.path[: -len(request.path_info)]
+        if script_name:
+            oas["servers"] = [{"url": script_name}]
+
+        prefix = request.path_info[: -len(self.__spec_endpoint)]
         if prefix:
             paths = oas.get("paths", {})
             for path in list(paths.keys()):
