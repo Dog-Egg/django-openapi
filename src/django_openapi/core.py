@@ -379,6 +379,10 @@ class Operation:
         self.__parse_parameters(handler)
         assert not hasattr(handler, "operation")
         handler.operation = self
+
+        if self.__description is None:
+            self.__description = inspect.getdoc(handler)
+
         return handler
 
     def wrapped_invoke(self, handler, request) -> t.Tuple[t.Any, int]:
