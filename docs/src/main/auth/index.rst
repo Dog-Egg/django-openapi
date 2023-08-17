@@ -1,5 +1,5 @@
-用户认证
-========
+用户认证与鉴权
+==============
 
 使用 `Operation <django_openapi.Operation>` 的 ``auth`` 参数来设置请求认证。
 
@@ -9,6 +9,7 @@
     :emphasize-lines: 7
 .. openapiview:: ./example.py
 
+也可以使用 `Resource <django_openapi.Resource>` 的 ``default_auth`` 参数为其下所有的 Operation 提供默认的 auth。
 
 .. warning::
     以下认证类基于 `django.contrib.auth <https://docs.djangoproject.com/en/4.2/ref/contrib/auth/>`_ 应用实现。如需使用，请确定你的 API 用户验证系统基于 django.contrib.auth 应用。

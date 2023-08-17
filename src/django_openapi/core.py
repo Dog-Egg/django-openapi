@@ -181,6 +181,7 @@ class Resource:
     """
     :param path: 资源 URL，必须以 "/" 开头。
     :param include_in_spec: 是否将当前资源解析到 |OAS| 中，默认为 `True`。
+    :param default_auth: 为所属的 Operation 提供默认的 auth。
     """
 
     HTTP_METHODS = [
@@ -201,6 +202,7 @@ class Resource:
         tags=None,
         view_decorators: t.Optional[list] = None,
         include_in_spec: bool = True,
+        default_auth: t.Union[BaseAuth, t.Type[BaseAuth], None] = None,
     ):
         if not isinstance(path, Path):
             path = Path(path)
@@ -211,6 +213,9 @@ class Resource:
         self.__include_in_spec = include_in_spec
         self.__view_function = None
         self._handle_error: t.Callable[[Exception, HttpRequest], HttpResponseBase] = None  # type: ignore
+        self._default_auth: t.Optional[BaseAuth] = default_auth and make_instance(
+            default_auth
+        )
 
     def __get_view_decorators(self):
         for d in self.__view_decorators:
@@ -356,10 +361,14 @@ class Operation:
         self.__include_in_spec = include_in_spec
         self.__status_code = status_code
         self.__response_description = HTTPStatus(status_code).phrase
-        self.__auth: t.Optional[BaseAuth] = auth and make_instance(auth)
+        self.__self_auth: t.Optional[BaseAuth] = auth and make_instance(auth)
         self.__mountpoints: t.Dict[str, MountPoint] = {}
         self._resource: Resource = None  # type: ignore
         self._view_decorators = view_decorators or []
+
+    @property
+    def __auth(self):
+        return self._resource._default_auth or self.__self_auth
 
     def __parse_parameters(self, handler):
         for name, parameter in inspect.signature(handler).parameters.items():
