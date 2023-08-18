@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import models
@@ -78,9 +80,13 @@ def test_DecimalField():
 
     FooSchema = model2schema(FooModel2)
 
+    # deserialize
+    assert FooSchema().deserialize({"a": 123.12}) == {"a": Decimal("123.12")}
+
+    # deserialize error
     with pytest.raises(schema.ValidationError):
         try:
-            FooSchema().deserialize({"a": "123.122"})
+            FooSchema().deserialize({"a": 123.122})
         except schema.ValidationError as e:
             assert e.format_errors() == [
                 {
@@ -89,3 +95,9 @@ def test_DecimalField():
                 }
             ]
             raise
+
+    # serialize
+    a = FooSchema().serialize({"a": Decimal("1"), "id": 1})["a"]
+    assert a == 1 and isinstance(a, int)
+    a = FooSchema().serialize({"a": Decimal("1.1"), "id": 1})["a"]
+    assert a == 1.1 and isinstance(a, float)

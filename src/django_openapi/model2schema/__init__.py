@@ -1,14 +1,14 @@
 import inspect
 import typing as t
-from decimal import Decimal
 
 import django
-from django.core.validators import DecimalValidator, MaxLengthValidator
+from django.core.validators import MaxLengthValidator
 from django.db import models
 
 from django_openapi.utils.django import django_validator_wraps
 
-from . import schema
+from .. import schema
+from . import _schemas
 
 
 def filter_defaults(kwargs: dict):
@@ -128,23 +128,6 @@ class FileParser(Parser):
         return kwargs
 
 
-class DecimalParser(Parser):
-    schemaclass = schema.Float
-
-    def get_validators(self, validators):
-        for validator in validators:
-            if isinstance(validator, DecimalValidator):
-
-                def wrapper(value):
-                    if isinstance(value, float):
-                        value = Decimal(str(value))
-                    return validator(value)
-
-                yield wrapper
-            else:
-                yield validator
-
-
 MODEL_FIELD_PARSERS = {
     models.BooleanField: Parser(schema.Boolean),
     models.CharField: CharParser(),
@@ -152,7 +135,7 @@ MODEL_FIELD_PARSERS = {
     models.DateField: Parser(schema.Date),
     models.DateTimeField: Parser(schema.Datetime),
     models.FileField: FileParser(),
-    models.DecimalField: DecimalParser(),
+    models.DecimalField: Parser(_schemas.Decimal),
     models.ForeignKey: ForeignKeyParser(),
     models.JSONField: Parser(schema.Any),
 }

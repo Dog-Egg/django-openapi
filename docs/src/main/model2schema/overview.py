@@ -11,7 +11,7 @@ class OneModel(models.Model):
     DateField = models.DateField()
     DateTimeField = models.DateTimeField()
     FileField = models.FileField()
-    # DecimalField = models.DecimalField() # TODO
+    DecimalField = models.DecimalField()
 
 
 @Resource("/to/path")
