@@ -1,3 +1,3 @@
-# Django-OpenAPI (Alpha)
+### Deprecated
 
-[文档地址](https://dog-egg.github.io/django-openapi/)
+The latest code has been moved into this project ([django-oasis](https://github.com/Dog-Egg/django-oasis)).
